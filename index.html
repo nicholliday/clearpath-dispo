@@ -38,6 +38,13 @@ h1{font-size:19px;font-weight:700;margin:2px 0 10px}
 .pill.gold{background:#4A3A0C;color:#F5E6B8}
 .pill.green{background:#064E3B;color:#A7F3D0}
 .pill.red{background:#7F1D1D;color:#FECACA}
+.st-agents{background:#4C1D95;color:#DDD6FE}
+.st-photos{background:#78350F;color:#FDE68A}
+.st-live{background:#1E3A8A;color:#BFDBFE}
+.st-mls{background:#134E4A;color:#99F6E4}
+.st-emd{background:#4A3A0C;color:#F5E6B8}
+.st-closed{background:#064E3B;color:#A7F3D0}
+.st-ghost{background:#7F1D1D;color:#FECACA}
 .meta{font-size:11px;color:var(--mut);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
 .meta .ok{color:var(--green)}.meta .bad{color:var(--red)}
 .qbtns{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
@@ -219,6 +226,15 @@ async function loadAll(){
 }
 
 // ---------- computed helpers ----------
+function stageClass(s){
+  if(s==='Our Listing Agents')return 'st-agents';
+  if(s==='Waiting On Photos')return 'st-photos';
+  if(s==='Photos Received (Live)')return 'st-live';
+  if(s==='Listed on MLS')return 'st-mls';
+  if(s==='EMD In')return 'st-emd';
+  if(s==='Closed')return 'st-closed';
+  return 'st-ghost';
+}
 function dealCode(d){ var idx=D.deals.findIndex(function(x){return x.id===d.id}); return 'D-'+String(idx+1).padStart(3,'0'); }
 function reached(d){ return D.sends.filter(function(s){return s.deal_id===d.id}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
 function bestOffer(d){ var o=D.offers.filter(function(x){return x.deal_id===d.id}); return o.length?Math.max.apply(null,o.map(function(x){return Number(x.amount)||0})):null; }
@@ -341,7 +357,7 @@ function dealCard(d,compact){
   var nt=needsTouch(d), bo=bestOffer(d), du=daysUnder(d);
   var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
     +'<div class="row"><div><b style="font-size:14px">'+esc(d.address)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
-    +'<span class="pill'+(d.stage==='Closed'?' green':d.stage.indexOf('Ghosted')>=0?' red':d.stage==='EMD In'?' gold':'')+'">'+esc(d.stage)+'</span></div>'
+    +'<span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></div>'
     +'<div class="meta">'+(d.contract_date?'<span>Insp '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
     +'<span>Ask '+fmt$(currentPrice(d))+'</span><span>Best '+(bo?fmt$(bo):'—')+'</span><span>Fee '+fmt$(d.fee_target)+'</span>'
     +(MKT.indexOf(d.stage)>=0?(nt?'<span class="bad">⚠️ needs touch</span>':'<span class="ok">✓ touched today</span>'):'')+'</div>'
@@ -386,7 +402,8 @@ function render(){
   var sc=document.getElementById('stageChips'); sc.innerHTML='';
   STAGES.forEach(function(s){
     var c=D.deals.filter(function(d){return d.stage===s}).length;
-    sc.innerHTML+='<div class="chip"><div class="v">'+c+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+'</div></div>';
+    var dotColors={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37','Closed':'#10B981','Ghosted':'#EF4444','Ghosted w/ Memorandum':'#EF4444'};
+  sc.innerHTML+='<div class="chip"><div style="width:8px;height:8px;border-radius:50%;background:'+(dotColors[s]||'#93A1B8')+';margin:0 auto 4px"></div><div class="v">'+c+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+'</div></div>';
   });
   var ws=document.getElementById('weekScore'); ws.innerHTML='';
   kpiSet(daysAgo(6),t).forEach(function(k){
