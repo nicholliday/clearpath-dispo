@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CP Dispo">
+<meta name="theme-color" content="#0B1220">
+<title>Clear Path Dispo</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0B1220;--card:#141D2E;--card2:#1B2740;--line:#26334D;--text:#EDF1F7;--mut:#93A1B8;--blue:#3B82F6;--blue-d:#1E3A8A;--gold:#D4AF37;--green:#10B981;--red:#EF4444;--amber:#F59E0B}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{padding-top:max(0.6rem,env(safe-area-inset-top));padding-bottom:max(4.5rem,env(safe-area-inset-bottom))}
+.wrap{max-width:760px;margin:0 auto;padding:0.6rem 0.8rem}
+.brand{font-size:10px;letter-spacing:0.12em;color:var(--gold);font-weight:700}
+h1{font-size:19px;font-weight:700;margin:2px 0 10px}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;background:none;border:none;color:var(--mut);font-size:10px;padding:9px 2px 7px;cursor:pointer}
+.tabs button.on{color:var(--gold)}
+.tabs .ic{font-size:19px;display:block;margin-bottom:2px}
+.view{display:none}.view.on{display:block}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.kpi{background:var(--card);border-radius:10px;padding:9px 10px}
+.kpi .n{font-size:10px;color:var(--mut)}
+.kpi .v{font-size:19px;font-weight:700}
+.kpi .v small{font-size:11px;color:var(--mut);font-weight:400}
+.bar{height:4px;background:var(--card2);border-radius:2px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:4px;border-radius:2px;background:var(--blue)}
+.bar i.hit{background:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.card.alert{border-color:var(--red)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:10px;padding:3px 9px;border-radius:9px;background:var(--blue-d);color:#BFDBFE;white-space:nowrap}
+.pill.gold{background:#4A3A0C;color:#F5E6B8}
+.pill.green{background:#064E3B;color:#A7F3D0}
+.pill.red{background:#7F1D1D;color:#FECACA}
+.meta{font-size:11px;color:var(--mut);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+.meta .ok{color:var(--green)}.meta .bad{color:var(--red)}
+.qbtns{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.qbtns button,.btn{background:var(--card2);border:1px solid var(--line);color:var(--text);font-size:11px;padding:6px 10px;border-radius:7px;cursor:pointer}
+.btn.p{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.g{background:var(--gold);border-color:var(--gold);color:#1F2937;font-weight:700}
+.btn.d{background:var(--red);border-color:var(--red);color:#fff}
+.big{width:100%;padding:11px;font-size:14px;border-radius:9px;margin-top:6px}
+.sec{font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--text)}
+.sec small{color:var(--mut);font-weight:400}
+input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:inherit}
+label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.third{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal.on{display:flex}
+.sheet{background:var(--card);width:100%;max-width:760px;max-height:88vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.sheet h2{font-size:16px;margin-bottom:12px}
+.chip{background:var(--card);border-radius:9px;padding:8px 12px;text-align:center;min-width:86px}
+.chip .v{font-size:17px;font-weight:700}
+.chip .n{font-size:9px;color:var(--mut)}
+.scoreline{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px}
+.scoreline .lbl{width:92px;color:var(--mut)}
+.scoreline .num{width:92px;text-align:right;font-weight:600}
+.sbar{flex:1;height:7px;background:var(--card2);border-radius:4px;overflow:hidden}
+.sbar i{display:block;height:7px;border-radius:4px}
+.tl{border-left:2px solid var(--line);padding-left:12px;margin-left:4px}
+.tl .ev{margin-bottom:10px;font-size:12px}
+.tl .ev .d{color:var(--mut);font-size:10px}
+.gate{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:2rem}
+.err{background:#7F1D1D;color:#FECACA;padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px;display:none}
+.loading{text-align:center;color:var(--mut);padding:2rem;font-size:13px}
+.blk{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px}
+.blk .bh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.blk .bt{font-size:13px;font-weight:700}
+.blk .btime{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:0.04em}
+.task{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.task:first-of-type{border-top:none}
+.task .cb{width:19px;height:19px;min-width:19px;border:2px solid var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;margin-top:1px;cursor:pointer}
+.task.done .cb{background:var(--blue)}
+.task.done .tl2{text-decoration:line-through;color:var(--mut)}
+.task .tl2{flex:1;cursor:pointer}
+.task .act{font-size:10px;padding:3px 8px;border-radius:6px;background:var(--card2);border:1px solid var(--line);color:var(--text);cursor:pointer;white-space:nowrap}
+.prow{padding:9px 0;border-top:1px solid var(--line)}
+.prow:first-of-type{border-top:none}
+.prow .cb{width:20px;height:20px;min-width:20px;border:2px solid var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;cursor:pointer}
+.prow.pdone .cb{background:var(--blue)}
+.prow.pdone b{text-decoration:line-through;color:var(--mut)}
+.tsel{width:110px;font-size:11px;padding:6px;margin:0}
+.pnote{flex:1;font-size:12px;padding:7px;margin:0;resize:none;min-height:34px;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <div class="brand">CLEAR PATH PROPERTY SOLUTIONS</div>
+  <h1 style="margin-bottom:16px">Dispo Command Center</h1>
+  <input type="password" id="passIn" placeholder="Team passcode" style="max-width:280px;text-align:center">
+  <button class="btn g big" style="max-width:280px" onclick="tryPass()">Enter</button>
+  <div id="passErr" style="color:var(--red);font-size:12px;margin-top:10px"></div>
+</div>
+
+<div class="wrap">
+  <div class="brand">CLEAR PATH PROPERTY SOLUTIONS</div>
+  <h1 id="pageTitle">Today</h1>
+  <div class="err" id="dbErr"></div>
+
+  <!-- TODAY -->
+  <div class="view on" id="v-today">
+    <div class="sec" style="margin-top:0">Today's contract plan <small id="planProg"></small></div>
+    <div id="planBlocks"><div class="loading">Loading…</div></div>
+    <div class="sec">My KPIs — today</div>
+    <div class="grid" id="kpiGrid"></div>
+    <button class="btn p big" onclick="openLog('activity')">+ Log activity (dials / convos / buyers)</button>
+  </div>
+
+  <!-- DEALS -->
+  <div class="view" id="v-deals">
+    <button class="btn g big" onclick="openDealForm()">+ New deal</button>
+    <div class="sec">Open <small id="openCount"></small></div>
+    <div id="dealsOpen"></div>
+    <div class="sec">Closed / dead</div>
+    <div id="dealsDone"></div>
+  </div>
+
+  <!-- OWNER -->
+  <div class="view" id="v-owner">
+    <div class="grid" style="grid-template-columns:1fr 1fr" id="ownerCards"></div>
+    <div class="sec">Pipeline by stage</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px" id="stageChips"></div>
+    <div class="sec">Rep scoreboard — last 7 days</div>
+    <div id="weekScore"></div>
+    <div class="sec">Leak finder <small>(last 30 days)</small></div>
+    <div class="card" id="leaks"></div>
+    <div class="sec">Month pace</div>
+    <div class="card" id="pace"></div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="view" id="v-insights">
+    <div class="card" id="insightStats"><div class="loading">Loading…</div></div>
+    <button class="btn g big" onclick="copyReport()">Copy full report for Claude</button>
+    <p style="font-size:11px;color:var(--mut);margin-top:8px">Tap the button, then paste into a Claude chat and ask: "Analyze my dispo operation — nurture discipline, rep vs targets, conversion leaks, and what to fix next week."</p>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="view" id="v-settings">
+    <div class="sec">Daily targets</div>
+    <div id="targetInputs"></div>
+    <button class="btn p big" onclick="saveTargets()">Save targets</button>
+    <p style="font-size:11px;color:var(--mut);margin-top:14px">Signed in with team passcode. Data syncs live between everyone using this app.</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="on" data-v="today" onclick="nav('today')"><span class="ic">☀️</span>Today</button>
+  <button data-v="deals" onclick="nav('deals')"><span class="ic">🏠</span>Deals</button>
+  <button data-v="owner" onclick="nav('owner')"><span class="ic">📊</span>Owner</button>
+  <button data-v="insights" onclick="nav('insights')"><span class="ic">🤖</span>Insights</button>
+  <button data-v="settings" onclick="nav('settings')"><span class="ic">⚙️</span>Settings</button>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ================= CONFIG =================
+var SUPA_URL = 'https://voitbqpvynbvlibuzxbz.supabase.co';
+var SUPA_KEY = 'sb_publishable_QreaC86dKq8FRmJPDkeenA_wZO8G5YG';
+var PASSCODE = 'clearpath';   // <-- CHANGE THIS before sharing with your rep
+// ==========================================
+var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+var D = { deals:[], sends:[], showings:[], offers:[], drops:[], feed:[], targets:{} };
+var STAGES = ['Our Listing Agents','Waiting On Photos','Photos Received (Live)','Listed on MLS','EMD In','Closed','Ghosted','Ghosted w/ Memorandum'];
+var MKT = STAGES.slice(0,4);
+var DEAD = ['Closed','Ghosted','Ghosted w/ Memorandum'];
+var TKEYS = [['dials_daily','Dials / day'],['convos_daily','Convos / day'],['reached_daily','Buyers reached / day'],['showings_daily','Showings / day'],['offers_daily','Offers / day'],['buyers_added_daily','Buyers added / day'],['min_buyers_per_deal','Min buyers per deal'],['assigned_monthly','Assignments / month'],['revenue_monthly','Revenue / month ($)']];
+
+function today(){ return new Date().toISOString().split('T')[0]; }
+function fmt$(n){ return n==null?'—':'$'+Math.round(n).toLocaleString(); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+function tryPass(){
+  if(document.getElementById('passIn').value===PASSCODE){
+    localStorage.setItem('cp_pass','1');
+    document.getElementById('gate').style.display='none';
+    loadAll();
+  } else document.getElementById('passErr').textContent='Wrong passcode';
+}
+if(localStorage.getItem('cp_pass')==='1'){ document.getElementById('gate').style.display='none'; }
+
+function nav(v){
+  document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});
+  document.getElementById('v-'+v).classList.add('on');
+  document.querySelectorAll('.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
+  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Owner Dashboard',insights:'AI Insights',settings:'Settings'}[v];
+  render();
+}
+
+async function loadAll(){
+  try{
+    var r = await Promise.all([
+      db.from('deals').select('*').order('created_at'),
+      db.from('sends').select('*'),
+      db.from('showings').select('*'),
+      db.from('offers').select('*'),
+      db.from('price_drops').select('*'),
+      db.from('auto_feed').select('*'),
+      db.from('targets').select('*')
+    ]);
+    for(var i=0;i<7;i++){ if(r[i].error) throw r[i].error; }
+    D.deals=r[0].data; D.sends=r[1].data; D.showings=r[2].data; D.offers=r[3].data; D.drops=r[4].data; D.feed=r[5].data;
+    D.targets={}; r[6].data.forEach(function(t){D.targets[t.key]=Number(t.value)});
+    await loadPlan();
+    render();
+  }catch(e){
+    var el=document.getElementById('dbErr'); el.style.display='block';
+    el.textContent='Database error: '+(e.message||e)+'. If tables are missing, run the SQL setup file in Supabase SQL Editor.';
+  }
+}
+
+// ---------- computed helpers ----------
+function dealCode(d){ var idx=D.deals.findIndex(function(x){return x.id===d.id}); return 'D-'+String(idx+1).padStart(3,'0'); }
+function reached(d){ return D.sends.filter(function(s){return s.deal_id===d.id}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
+function bestOffer(d){ var o=D.offers.filter(function(x){return x.deal_id===d.id}); return o.length?Math.max.apply(null,o.map(function(x){return Number(x.amount)||0})):null; }
+function pendingOffers(){ return D.offers.filter(function(o){return o.status==='New'||o.status==='Countered'}).length; }
+function currentPrice(d){ var dr=D.drops.filter(function(x){return x.deal_id===d.id}).sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at)}); return dr.length?dr[dr.length-1].new_price:d.start_ask; }
+function lastTouch(d){
+  var ds=[].concat(
+    D.sends.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.sent_on}),
+    D.showings.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.shown_on}),
+    D.offers.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.offered_on}),
+    D.drops.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.dropped_on}));
+  return ds.length?ds.sort().pop():null;
+}
+function needsTouch(d){ return MKT.indexOf(d.stage)>=0 && lastTouch(d)!==today(); }
+function daysUnder(d){ return d.contract_date?Math.floor((new Date(today())-new Date(d.contract_date))/86400000):null; }
+function sumFeed(ev,from,to){ return D.feed.filter(function(f){return f.event===ev&&f.happened_on>=from&&f.happened_on<=to}).reduce(function(a,f){return a+(f.count||1)},0); }
+function sumReached(from,to){ return D.sends.filter(function(s){return s.sent_on>=from&&s.sent_on<=to}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
+function countRows(arr,dateKey,from,to){ return arr.filter(function(x){return x[dateKey]>=from&&x[dateKey]<=to}).length; }
+function daysAgo(n){ var d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; }
+
+function kpiSet(from,to){
+  return [
+    {n:'Dials',v:sumFeed('dial',from,to),t:D.targets.dials_daily||110},
+    {n:'Convos',v:sumFeed('convo',from,to),t:D.targets.convos_daily||36},
+    {n:'Reached',v:sumReached(from,to),t:D.targets.reached_daily||63},
+    {n:'Showings',v:countRows(D.showings,'shown_on',from,to),t:D.targets.showings_daily||4},
+    {n:'Offers',v:countRows(D.offers,'offered_on',from,to),t:D.targets.offers_daily||4},
+    {n:'Buyers+',v:sumFeed('buyer_added',from,to),t:D.targets.buyers_added_daily||6}
+  ];
+}
+
+// ---------- daily contract plan ----------
+var PLAN = {};          // deal_id -> today's plan row
+var PLAN_ERR = null;
+var BLOCKS = ['9:00 - 10:30','10:30 - 1:00','1:00 - 4:00','4:00 - 5:00','Anytime'];
+var STAGE_HINT = {
+  'Our Listing Agents':'Get it in front of listing agents today',
+  'Waiting On Photos':'Chase photos, get this live today',
+  'Photos Received (Live)':'Blast full buyer list, call top buyers',
+  'Listed on MLS':'Re-blast, book showings, follow up buyers',
+  'EMD In':'Push closing: title, EMD status, buyer comms'
+};
+async function loadPlan(){
+  PLAN = {}; PLAN_ERR = null;
+  var r = await db.from('daily_plan').select('*').eq('plan_on', today());
+  if(r.error){ PLAN_ERR = r.error.message; return; }
+  r.data.forEach(function(p){ PLAN[p.deal_id] = p; });
+}
+async function upPlan(dealId, patch){
+  var cur = PLAN[dealId] || {};
+  var row = {
+    deal_id: dealId, plan_on: today(),
+    time_block: patch.time_block !== undefined ? patch.time_block : (cur.time_block || null),
+    note: patch.note !== undefined ? patch.note : (cur.note || null),
+    done: patch.done !== undefined ? patch.done : (cur.done || false)
+  };
+  var r = await db.from('daily_plan').upsert(row, { onConflict: 'deal_id,plan_on' }).select();
+  if(r.error) return alert(r.error.message);
+  PLAN[dealId] = r.data[0];
+}
+async function planCheck(dealId){
+  var cur = PLAN[dealId] || {};
+  await upPlan(dealId, { done: !cur.done });
+  renderPlan();
+}
+async function planTime(dealId, val){
+  await upPlan(dealId, { time_block: val || null });
+  renderPlan();
+}
+async function planNote(dealId, val){
+  await upPlan(dealId, { note: val });
+  var open=D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  var done=open.filter(function(d){return PLAN[d.id]&&PLAN[d.id].done}).length;
+  document.getElementById('planProg').textContent=open.length?done+' / '+open.length+' done':'';
+}
+function renderPlan(){
+  var el = document.getElementById('planBlocks');
+  if(PLAN_ERR){
+    el.innerHTML='<div class="err" style="display:block">Plan table missing: '+esc(PLAN_ERR)+'<br>Run the daily-plan SQL file in Supabase SQL Editor, then refresh.</div>';
+    document.getElementById('planProg').textContent='';
+    return;
+  }
+  var open = D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  if(!open.length){
+    el.innerHTML='<p style="font-size:12px;color:var(--mut)">Add your first deal on the Deals tab — every open contract shows up here daily.</p>';
+    document.getElementById('planProg').textContent='';
+    return;
+  }
+  var done = 0, h = '';
+  BLOCKS.forEach(function(b){
+    var group = open.filter(function(d){ var p=PLAN[d.id]; return (p&&p.time_block?p.time_block:'Anytime')===b; });
+    if(!group.length) return;
+    h += '<div class="blk"><div class="bh"><span class="bt">'+(b==='Anytime'?'Unscheduled — assign a time block':'Time block')+'</span><span class="btime">'+b+'</span></div>';
+    group.forEach(function(d){
+      var p = PLAN[d.id] || {};
+      if(p.done) done++;
+      var hint = STAGE_HINT[d.stage] || 'Plan for this contract today';
+      h += '<div class="prow'+(p.done?' pdone':'')+'">'
+        +'<div style="display:flex;align-items:center;gap:9px">'
+        +'<div class="cb" onclick="planCheck(\''+d.id+'\')">'+(p.done?'✓':'')+'</div>'
+        +'<div style="flex:1;cursor:pointer" onclick="openDeal(\''+d.id+'\')"><b style="font-size:13px">'+esc(d.address)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
+        +'<span class="pill'+(d.stage==='EMD In'?' gold':d.stage.indexOf('Ghosted')>=0?' red':d.stage==='Closed'?' green':'')+'">'+esc(d.stage)+'</span></div>'
+        +'<div style="display:flex;gap:8px;margin-top:7px;align-items:flex-start">'
+        +'<select class="tsel" onchange="planTime(\''+d.id+'\',this.value)">'
+        +'<option value=""'+(!p.time_block?' selected':'')+'>Time…</option>'
+        +BLOCKS.slice(0,4).map(function(x){return '<option'+(p.time_block===x?' selected':'')+'>'+x+'</option>'}).join('')
+        +'</select>'
+        +'<textarea class="pnote" rows="1" placeholder="'+esc(hint)+'" onblur="planNote(\''+d.id+'\',this.value)" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(p.note||'')+'</textarea>'
+        +'</div></div>';
+    });
+    h += '</div>';
+  });
+  el.innerHTML = h;
+  document.getElementById('planProg').textContent = done+' / '+open.length+' done';
+}
+
+// ---------- deal card ----------
+function dealCard(d,compact){
+  var r=reached(d), min=D.targets.min_buyers_per_deal||100, pct=Math.min(100,Math.round(r/min*100));
+  var nt=needsTouch(d), bo=bestOffer(d), du=daysUnder(d);
+  var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
+    +'<div class="row"><div><b style="font-size:14px">'+esc(d.address)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
+    +'<span class="pill'+(d.stage==='Closed'?' green':d.stage.indexOf('Ghosted')>=0?' red':d.stage==='EMD In'?' gold':'')+'">'+esc(d.stage)+'</span></div>'
+    +'<div class="meta">'+(d.contract_date?'<span>Insp '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
+    +'<span>Ask '+fmt$(currentPrice(d))+'</span><span>Best '+(bo?fmt$(bo):'—')+'</span><span>Fee '+fmt$(d.fee_target)+'</span>'
+    +(MKT.indexOf(d.stage)>=0?(nt?'<span class="bad">⚠️ needs touch</span>':'<span class="ok">✓ touched today</span>'):'')+'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div><span style="font-size:10px;color:var(--mut);white-space:nowrap">'+r+'/'+min+' buyers</span></div>';
+  if(!compact){
+    h+='<div class="qbtns" onclick="event.stopPropagation()">'
+      +'<button onclick="openLog(\'send\',\''+d.id+'\')">+ Send</button>'
+      +'<button onclick="openLog(\'showing\',\''+d.id+'\')">+ Showing</button>'
+      +'<button onclick="openLog(\'offer\',\''+d.id+'\')">+ Offer</button>'
+      +'<button onclick="openLog(\'drop\',\''+d.id+'\')">Price drop</button></div>';
+  }
+  return h+'</div>';
+}
+
+// ---------- render ----------
+function render(){
+  var t=today();
+  // TODAY
+  var g=document.getElementById('kpiGrid'); g.innerHTML='';
+  kpiSet(t,t).forEach(function(k){
+    var pct=Math.min(100,Math.round(k.v/k.t*100)), hit=k.v>=k.t;
+    g.innerHTML+='<div class="kpi"><div class="n">'+k.n+'</div><div class="v" style="color:'+(hit?'var(--green)':'var(--text)')+'">'+k.v+'<small>/'+k.t+'</small></div><div class="bar"><i class="'+(hit?'hit':'')+'" style="width:'+pct+'%"></i></div></div>';
+  });
+  var open=D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  var need=open.filter(needsTouch);
+  renderPlan();
+
+  // DEALS
+  document.getElementById('openCount').textContent=open.length+' deals';
+  document.getElementById('dealsOpen').innerHTML=open.map(function(d){return dealCard(d,false)}).join('')||'<p style="font-size:12px;color:var(--mut)">Tap + New deal to add your first contract.</p>';
+  document.getElementById('dealsDone').innerHTML=D.deals.filter(function(d){return DEAD.indexOf(d.stage)>=0}).map(function(d){return dealCard(d,true)}).join('')||'<p style="font-size:12px;color:var(--mut)">None yet.</p>';
+
+  // OWNER
+  var fee=open.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
+  var min=D.targets.min_buyers_per_deal||100;
+  var under=open.filter(function(d){return reached(d)<min}).length;
+  var oc=document.getElementById('ownerCards');
+  oc.innerHTML='<div class="kpi"><div class="n">Open pipeline fee $</div><div class="v">'+fmt$(fee)+'</div></div>'
+    +'<div class="kpi" style="background:'+(need.length?'#3B1212':'var(--card)')+'"><div class="n" style="color:'+(need.length?'#FCA5A5':'var(--mut)')+'">Not touched today</div><div class="v" style="color:'+(need.length?'#FCA5A5':'var(--green)')+'">'+need.length+'</div><div style="font-size:10px;color:#FCA5A5">'+need.map(dealCode).join(', ')+'</div></div>'
+    +'<div class="kpi"><div class="n">Under '+min+'-buyer min</div><div class="v" style="color:'+(under?'var(--amber)':'var(--green)')+'">'+under+'</div></div>'
+    +'<div class="kpi"><div class="n">Offers pending</div><div class="v">'+pendingOffers()+'</div></div>';
+  var sc=document.getElementById('stageChips'); sc.innerHTML='';
+  STAGES.forEach(function(s){
+    var c=D.deals.filter(function(d){return d.stage===s}).length;
+    sc.innerHTML+='<div class="chip"><div class="v">'+c+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+'</div></div>';
+  });
+  var ws=document.getElementById('weekScore'); ws.innerHTML='';
+  kpiSet(daysAgo(6),t).forEach(function(k){
+    var wt=k.t*7, pct=Math.min(100,Math.round(k.v/wt*100));
+    var col=pct>=90?'var(--green)':pct>=70?'var(--blue)':'var(--red)';
+    ws.innerHTML+='<div class="scoreline"><span class="lbl">'+k.n+'</span><div class="sbar"><i style="width:'+pct+'%;background:'+col+'"></i></div><span class="num">'+k.v+' / '+wt+' ('+pct+'%)</span></div>';
+  });
+  var m=daysAgo(29);
+  var dl=sumFeed('dial',m,t), cv=sumFeed('convo',m,t), rc=sumReached(m,t), sh=countRows(D.showings,'shown_on',m,t), of=countRows(D.offers,'offered_on',m,t);
+  document.getElementById('leaks').innerHTML=
+    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Convos per 100 dials</span><b>'+(dl?Math.round(cv/dl*1000)/10:'—')+'</b></div>'
+    +'<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Showings per 100 reached</span><b>'+(rc?Math.round(sh/rc*1000)/10:'—')+'</b></div>'
+    +'<div class="row" style="font-size:12px"><span style="color:var(--mut)">Offers per 10 showings</span><b>'+(sh?Math.round(of/sh*100)/10:'—')+'</b></div>';
+  var mStart=t.slice(0,8)+'01';
+  var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||d.contract_date||'')>=mStart)});
+  var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+  var at=D.targets.assigned_monthly||10, rt=D.targets.revenue_monthly||100000;
+  document.getElementById('pace').innerHTML=
+    '<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Assignments closed '+closed.length+' / '+at+'</div><div class="sbar" style="margin-bottom:10px"><i style="width:'+Math.min(100,Math.round(closed.length/at*100))+'%;background:var(--blue)"></i></div>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Revenue closed '+fmt$(rev)+' / '+fmt$(rt)+'</div><div class="sbar"><i style="width:'+Math.min(100,Math.round(rev/rt*100))+'%;background:var(--gold)"></i></div>';
+
+  // INSIGHTS
+  document.getElementById('insightStats').innerHTML=buildReport(true);
+
+  // SETTINGS
+  var ti=document.getElementById('targetInputs'); ti.innerHTML='';
+  TKEYS.forEach(function(k){
+    ti.innerHTML+='<label>'+k[1]+'</label><input type="number" id="t_'+k[0]+'" value="'+(D.targets[k[0]]||0)+'">';
+  });
+}
+
+function buildReport(html){
+  var t=today(), w=daysAgo(6), m=daysAgo(29);
+  var open=D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  var lines=[];
+  lines.push('CLEAR PATH DISPO REPORT — '+t);
+  lines.push('');
+  lines.push('PIPELINE: '+open.length+' open deals, fee target total '+fmt$(open.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0)));
+  STAGES.forEach(function(s){ var c=D.deals.filter(function(d){return d.stage===s}).length; if(c)lines.push('  '+s+': '+c); });
+  lines.push('');
+  lines.push('DEALS:');
+  open.forEach(function(d){
+    lines.push('  '+dealCode(d)+' '+d.address+' | '+d.stage+' | day '+(daysUnder(d)||'?')+' | reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+' | best offer '+(bestOffer(d)?fmt$(bestOffer(d)):'none')+' | last touch '+(lastTouch(d)||'never'));
+  });
+  lines.push('');
+  lines.push('THIS WEEK vs TARGET (7-day):');
+  kpiSet(w,t).forEach(function(k){ lines.push('  '+k.n+': '+k.v+' / '+(k.t*7)); });
+  lines.push('');
+  var dl=sumFeed('dial',m,t), cv=sumFeed('convo',m,t), rc=sumReached(m,t), sh=countRows(D.showings,'shown_on',m,t), of=countRows(D.offers,'offered_on',m,t);
+  lines.push('CONVERSION (30d): dials '+dl+', convos '+cv+', buyers reached '+rc+', showings '+sh+', offers '+of);
+  if(html) return '<pre style="white-space:pre-wrap;font-size:11px;color:var(--mut);font-family:inherit">'+esc(lines.join('\n'))+'</pre>';
+  return lines.join('\n');
+}
+function copyReport(){
+  navigator.clipboard.writeText(buildReport(false)).then(function(){alert('Report copied — paste it into Claude')});
+}
+
+// ---------- modals ----------
+function openModal(h){ document.getElementById('sheet').innerHTML=h; document.getElementById('modal').classList.add('on'); }
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal')closeModal(); });
+
+function dealOptions(sel){
+  return D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0}).map(function(d){
+    return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+dealCode(d)+' — '+esc(d.address)+'</option>';
+  }).join('');
+}
+
+function openLog(kind,dealId){
+  var h='';
+  if(kind==='activity'){
+    h='<h2>Log activity</h2><p style="font-size:11px;color:var(--mut);margin-bottom:10px">Until GHL/Quo automation is wired, log your daily numbers here. Enter what you did (adds to today).</p>'
+    +'<div class="third"><div><label>Dials</label><input type="number" id="la_d" value="0"></div><div><label>Convos</label><input type="number" id="la_c" value="0"></div><div><label>Buyers added</label><input type="number" id="la_b" value="0"></div></div>'
+    +'<button class="btn p big" onclick="saveActivity()">Save</button>';
+  } else if(kind==='send'){
+    h='<h2>Log a send / blast</h2>'
+    +'<label>Deal</label><select id="ls_deal">'+dealOptions(dealId)+'</select>'
+    +'<label>List / buyer</label><input id="ls_list" placeholder="Full buyer list">'
+    +'<div class="half"><div><label>Channel</label><select id="ls_ch"><option>Email</option><option>Text</option><option>CRM</option><option>Facebook</option><option>Other</option></select></div>'
+    +'<div><label>Buyers reached</label><input type="number" id="ls_n" value="63"></div></div>'
+    +'<button class="btn p big" onclick="saveSend()">Save send</button>';
+  } else if(kind==='showing'){
+    h='<h2>Log a showing</h2>'
+    +'<label>Deal</label><select id="lw_deal">'+dealOptions(dealId)+'</select>'
+    +'<label>Buyer</label><input id="lw_buyer" placeholder="Buyer name">'
+    +'<label>Outcome</label><select id="lw_out"><option>Interested</option><option>Thinking</option><option>Pass</option><option>Offer Coming</option></select>'
+    +'<button class="btn p big" onclick="saveShowing()">Save showing</button>';
+  } else if(kind==='offer'){
+    h='<h2>Log an offer</h2>'
+    +'<label>Deal</label><select id="lo_deal">'+dealOptions(dealId)+'</select>'
+    +'<label>Buyer</label><input id="lo_buyer" placeholder="Buyer name">'
+    +'<label>Amount</label><input type="number" id="lo_amt" placeholder="192000">'
+    +'<button class="btn p big" onclick="saveOffer()">Save offer</button>';
+  } else if(kind==='drop'){
+    var d=D.deals.find(function(x){return x.id===dealId});
+    h='<h2>Price drop</h2>'
+    +'<label>Deal</label><select id="ld_deal">'+dealOptions(dealId)+'</select>'
+    +'<label>New price</label><input type="number" id="ld_new" placeholder="'+(d?currentPrice(d):'')+'">'
+    +'<label>Reason</label><input id="ld_why" placeholder="No offers after 60 sends">'
+    +'<button class="btn p big" onclick="saveDrop()">Save price drop</button>';
+  }
+  openModal(h);
+}
+
+async function saveActivity(){
+  var rows=[], t=today();
+  var d=Number(document.getElementById('la_d').value)||0;
+  var c=Number(document.getElementById('la_c').value)||0;
+  var b=Number(document.getElementById('la_b').value)||0;
+  if(d)rows.push({happened_on:t,source:'Manual',event:'dial',count:d});
+  if(c)rows.push({happened_on:t,source:'Manual',event:'convo',count:c});
+  if(b)rows.push({happened_on:t,source:'Manual',event:'buyer_added',count:b});
+  if(rows.length){ var r=await db.from('auto_feed').insert(rows); if(r.error)return alert(r.error.message); }
+  closeModal(); loadAll();
+}
+async function saveSend(){
+  var r=await db.from('sends').insert({deal_id:document.getElementById('ls_deal').value,sent_on:today(),list_name:document.getElementById('ls_list').value,channel:document.getElementById('ls_ch').value,buyers_reached:Number(document.getElementById('ls_n').value)||0});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveShowing(){
+  var r=await db.from('showings').insert({deal_id:document.getElementById('lw_deal').value,shown_on:today(),buyer:document.getElementById('lw_buyer').value,outcome:document.getElementById('lw_out').value});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveOffer(){
+  var r=await db.from('offers').insert({deal_id:document.getElementById('lo_deal').value,offered_on:today(),buyer:document.getElementById('lo_buyer').value,amount:Number(document.getElementById('lo_amt').value)||0,status:'New'});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveDrop(){
+  var id=document.getElementById('ld_deal').value;
+  var d=D.deals.find(function(x){return x.id===id});
+  var r=await db.from('price_drops').insert({deal_id:id,dropped_on:today(),old_price:currentPrice(d),new_price:Number(document.getElementById('ld_new').value)||0,reason:document.getElementById('ld_why').value});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+
+// ---------- deal form + detail ----------
+function openDealForm(existing){
+  var d=existing||{};
+  var h='<h2>'+(existing?'Edit deal':'New deal')+'</h2>'
+  +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
+  +'<label>Location / area</label><input id="f_area" value="'+esc(d.area||'')+'">'
+  +'<div class="half"><div><label>Contract price</label><input type="number" id="f_cp" value="'+(d.contract_price||'')+'"></div><div><label>Asking price</label><input type="number" id="f_ask" value="'+(d.start_ask||'')+'"></div></div>'
+  +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Occupancy</label><select id="f_occ">'+['','Vacant','Tenant','Owner Occupied'].map(function(o){return '<option'+(d.occupancy===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
+  +'<label>Stage</label><select id="f_stage">'+STAGES.map(function(s){return '<option'+(d.stage===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
+  +'<div class="half"><div><label>Inspection deadline</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
+  +'<div id="f_revwrap" style="display:'+(d.stage==='Closed'?'block':'none')+'"><label>Revenue closed ($)</label><input type="number" id="f_rev" value="'+(d.revenue_closed||'')+'"></div>'
+  +'<label>Notes</label><textarea id="f_notes" rows="2">'+esc(d.notes||'')+'</textarea>'
+  +'<button class="btn g big" onclick="saveDeal(\''+(d.id||'')+'\')">'+(existing?'Save changes':'Add deal')+'</button>'
+  +(existing?'<button class="btn d big" onclick="delDeal(\''+d.id+'\')">Delete deal</button>':'');
+  openModal(h);
+  document.getElementById('f_stage').addEventListener('change',function(){ document.getElementById('f_revwrap').style.display=this.value==='Closed'?'block':'none'; });
+}
+async function saveDeal(id){
+  var row={address:document.getElementById('f_addr').value,
+    area:document.getElementById('f_area').value,
+    contract_price:Number(document.getElementById('f_cp').value)||null,
+    start_ask:Number(document.getElementById('f_ask').value)||null,
+    fee_target:Number(document.getElementById('f_fee').value)||null,
+    occupancy:document.getElementById('f_occ').value||null,
+    stage:document.getElementById('f_stage').value,
+    contract_date:document.getElementById('f_insp').value||null,
+    closing_deadline:document.getElementById('f_dl').value||null,
+    revenue_closed:Number(document.getElementById('f_rev')?document.getElementById('f_rev').value:0)||null,
+    notes:document.getElementById('f_notes').value};
+  if(!row.address)return alert('Address required');
+  var r = id? await db.from('deals').update(row).eq('id',id) : await db.from('deals').insert(row);
+  if(r.error)return alert(r.error.message);
+  closeModal(); loadAll();
+}
+async function delDeal(id){
+  if(!confirm('Delete this deal and all its history?'))return;
+  var r=await db.from('deals').delete().eq('id',id);
+  if(r.error)return alert(r.error.message);
+  closeModal(); loadAll();
+}
+
+function openDeal(id){
+  var d=D.deals.find(function(x){return x.id===id});
+  var evs=[].concat(
+    D.sends.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.sent_on,t:'📤 Sent to '+(x.buyers_reached||0)+' buyers ('+x.channel+')'+(x.list_name?' — '+esc(x.list_name):'')}}),
+    D.showings.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.shown_on,t:'🚪 Showing — '+esc(x.buyer||'')+' ('+esc(x.outcome||'')+')'}}),
+    D.offers.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.offered_on,t:'💰 Offer '+fmt$(x.amount)+' — '+esc(x.buyer||'')+' ['+esc(x.status)+']'}}),
+    D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}})
+  ).sort(function(a,b){return b.d<a.d?-1:1});
+  var h='<h2>'+esc(d.address)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
+  +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
+  +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
+  +'<div class="qbtns" style="margin-bottom:14px">'
+  +'<button onclick="closeModal();openLog(\'send\',\''+id+'\')">+ Send</button>'
+  +'<button onclick="closeModal();openLog(\'showing\',\''+id+'\')">+ Showing</button>'
+  +'<button onclick="closeModal();openLog(\'offer\',\''+id+'\')">+ Offer</button>'
+  +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
+  +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Edit</button></div>'
+  +'<div class="sec" style="margin-top:0">Activity timeline</div>'
+  +'<div class="tl">'+(evs.map(function(e){return '<div class="ev"><div class="d">'+e.d+'</div>'+e.t+'</div>'}).join('')||'<p style="font-size:12px;color:var(--mut)">No activity yet — get it in front of buyers.</p>')+'</div>';
+  openModal(h);
+}
+
+async function saveTargets(){
+  for(var i=0;i<TKEYS.length;i++){
+    var k=TKEYS[i][0], v=Number(document.getElementById('t_'+k).value)||0;
+    var r=await db.from('targets').upsert({key:k,value:v});
+    if(r.error)return alert(r.error.message);
+  }
+  alert('Targets saved'); loadAll();
+}
+
+if(localStorage.getItem('cp_pass')==='1') loadAll();
+</script>
+</body>
+</html>
