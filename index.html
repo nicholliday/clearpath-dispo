@@ -449,6 +449,11 @@ function renderPlan(){
   var allBlocks = BLOCKS.slice(0,4).concat(customBlocks).concat(['Anytime']);
   allBlocks.forEach(function(b){
     var group = open.filter(function(d){ var p=PLAN[d.id]; return (p&&p.time_block?p.time_block:'Anytime')===b; });
+    group.sort(function(a,c){
+      var sa=STAGES.indexOf(a.stage), sc=STAGES.indexOf(c.stage);
+      if(sa!==sc) return sa-sc;
+      return D.deals.indexOf(a)-D.deals.indexOf(c);
+    });
     if(!group.length) return;
     h += '<div class="blk"><div class="bh"><span class="bt">'+(b==='Anytime'?'Unscheduled — assign a time block':'Time block')+'</span><span class="btime">'+b+'</span></div>';
     group.forEach(function(d){
@@ -536,8 +541,13 @@ function render(){
   });
 
   document.getElementById('ntCount').textContent=need.length?need.length+' deals':'— all touched ✓';
+  var ntSorted = need.slice().sort(function(a,c){ return STAGES.indexOf(a.stage)-STAGES.indexOf(c.stage); });
   document.getElementById('ntList').innerHTML=need.length?
-    '<div style="font-size:12px;color:#FCA5A5;line-height:1.9">'+need.map(function(x){return dealLabel(x)}).join(' · ')+'</div>':
+    ntSorted.map(function(x){
+      return '<div onclick="openDeal(\''+x.id+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer">'
+        +'<span style="font-size:12px;color:#FCA5A5">'+dealLabel(x)+'</span>'
+        +'<span class="pill '+stageClass(x.stage)+'" style="font-size:9px">'+esc(x.stage)+'</span></div>';
+    }).join('')+'<style>#ntList > div:last-child{border-bottom:none}</style>':
     '<div style="font-size:12px;color:var(--green)">Every open contract has been worked today. ✓</div>';
   document.getElementById('ntList').style.borderColor=need.length?'var(--red)':'var(--line)';
 
