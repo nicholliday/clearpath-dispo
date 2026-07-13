@@ -594,6 +594,22 @@ function render(){
   }
   document.getElementById('kpiTable').innerHTML=kh;
 
+  // Leak finder (last 30 days)
+  var m30=daysAgo(29);
+  var dl=sumFeed('dial',m30,t), cv=sumFeed('convo',m30,t), rc=sumReached(m30,t), sh=countRows(D.showings,'shown_on',m30,t), of=countRows(D.offers,'offered_on',m30,t);
+  document.getElementById('leaks').innerHTML=
+    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Convos per 100 dials</span><b>'+(dl?Math.round(cv/dl*1000)/10:'—')+'</b></div>'
+    +'<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Walkthroughs per 100 buyers sent</span><b>'+(rc?Math.round(sh/rc*1000)/10:'—')+'</b></div>'
+    +'<div class="row" style="font-size:12px"><span style="color:var(--mut)">Offers received per 10 walkthroughs</span><b>'+(sh?Math.round(of/sh*100)/10:'—')+'</b></div>';
+
+  // Month pace
+  var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||'')>=mStart2)});
+  var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+  var at=D.targets.assigned_monthly||10, rt=D.targets.revenue_monthly||100000;
+  document.getElementById('pace').innerHTML=
+    '<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Assignments closed '+closed.length+' / '+at+'</div><div class="sbar" style="margin-bottom:10px"><i style="width:'+Math.min(100,Math.round(closed.length/at*100))+'%;background:var(--blue)"></i></div>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Revenue closed '+fmt$(rev)+' / '+fmt$(rt)+'</div><div class="sbar"><i style="width:'+Math.min(100,Math.round(rev/rt*100))+'%;background:var(--gold)"></i></div>';
+
   // INSIGHTS
   document.getElementById('insightStats').innerHTML=buildReport(true);
 
