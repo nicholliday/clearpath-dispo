@@ -495,7 +495,10 @@ function dealCard(d,compact){
         +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">SOP '+pr.done+'/'+pr.total+'</span>'
         +'<div class="sbar"><i style="width:'+pct+'%;background:'+(pct>=100?'var(--green)':pct>=50?'var(--blue)':'var(--red)')+'"></i></div>'
         +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(pct>=100?'var(--green)':pct>=50?'var(--text)':'var(--red)')+'">'+pct+'%'+(pct>=100?' ✓':'')+'</span></div>'})()
-    +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div><span style="font-size:10px;color:var(--mut);white-space:nowrap">'+r+'/'+min+' buyers</span></div>';
+    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
+    +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">Buyers '+r+'/'+min+'</span>'
+    +'<div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div>'
+    +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(r>=min?'var(--green)':'var(--mut)')+'">'+Math.min(100,pct)+'%'+(r>=min?' ✓':'')+'</span></div>';
   if(!compact){
     h+='<div class="qbtns" onclick="event.stopPropagation()">'
       +'<button onclick="openLog(\'send\',\''+d.id+'\')">+ Send</button>'
