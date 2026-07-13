@@ -490,7 +490,11 @@ function dealCard(d,compact){
     +'<div class="meta">'+(d.contract_date?'<span>Insp ends '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
     +'<span>Ask '+fmt$(currentPrice(d))+'</span><span>Best '+(bo?fmt$(bo):'—')+'</span><span>Fee '+fmt$(d.fee_target)+'</span>'
     +(MKT.indexOf(d.stage)>=0?(nt?'<span class="bad">⚠️ needs touch</span>':'<span class="ok">✓ touched today</span>'):'')+'</div>'
-    +(function(){var pr=sopProgress(d);return '<div style="font-size:10px;color:'+(pr.done>=pr.total?'var(--green)':'var(--mut)')+';margin-top:6px">SOP '+pr.done+'/'+pr.total+(pr.done>=pr.total?' ✓':'')+'</div>'})()
+    +(function(){var pr=sopProgress(d);var pct=pr.total?Math.round(pr.done/pr.total*100):0;
+      return '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">'
+        +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">SOP '+pr.done+'/'+pr.total+'</span>'
+        +'<div class="sbar"><i style="width:'+pct+'%;background:'+(pct>=100?'var(--green)':pct>=50?'var(--blue)':'var(--red)')+'"></i></div>'
+        +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(pct>=100?'var(--green)':pct>=50?'var(--text)':'var(--red)')+'">'+pct+'%'+(pct>=100?' ✓':'')+'</span></div>'})()
     +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div><span style="font-size:10px;color:var(--mut);white-space:nowrap">'+r+'/'+min+' buyers</span></div>';
   if(!compact){
     h+='<div class="qbtns" onclick="event.stopPropagation()">'
