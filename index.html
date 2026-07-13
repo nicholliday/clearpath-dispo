@@ -95,6 +95,12 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .prow.pdone b{text-decoration:line-through;color:var(--mut)}
 .tsel{width:110px;font-size:11px;padding:6px;margin:0}
 .pnote{flex:1;font-size:12px;padding:7px;margin:0;resize:none;min-height:34px;overflow:hidden}
+.obt{width:100%;border-collapse:collapse;font-size:11px}
+.obt th{color:var(--mut);text-align:left;padding:8px 6px 4px;font-weight:600}
+.obt td{color:var(--text);border-top:1px solid var(--line);padding:7px 6px}
+.warn-amber{color:var(--amber);font-weight:700}
+.warn-red{color:var(--red);font-weight:700}
+.ok-green{color:var(--green);font-weight:700}
 </style>
 </head>
 <body>
@@ -129,15 +135,26 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div id="dealsDone"></div>
   </div>
 
-  <!-- OWNER -->
+  <!-- OPERATOR -->
   <div class="view" id="v-owner">
-    <div class="grid" style="grid-template-columns:1fr 1fr" id="ownerCards"></div>
-    <div class="sec">Pipeline by stage</div>
+    <div class="sec" style="margin-top:0">Projected value per stage</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px" id="stageChips"></div>
-    <div class="sec">Rep scoreboard — last 7 days</div>
-    <div id="weekScore"></div>
+
+    <div class="sec">Not touched today <small id="ntCount"></small></div>
+    <div class="card" id="ntList" style="border-color:var(--red)"></div>
+
+    <div class="sec">Live assignments board <small>(cash / double close)</small></div>
+    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="assignBoard"></table></div>
+
+    <div class="sec">Live novations board</div>
+    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="novBoard"></table></div>
+
+    <div class="sec">Rep KPIs — <span id="kpiMonthName"></span></div>
+    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="kpiTable"></table></div>
+
     <div class="sec">Leak finder <small>(last 30 days)</small></div>
     <div class="card" id="leaks"></div>
+
     <div class="sec">Month pace</div>
     <div class="card" id="pace"></div>
   </div>
@@ -161,7 +178,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 <div class="tabs">
   <button class="on" data-v="today" onclick="nav('today')"><span class="ic">☀️</span>Today</button>
   <button data-v="deals" onclick="nav('deals')"><span class="ic">🏠</span>Deals</button>
-  <button data-v="owner" onclick="nav('owner')"><span class="ic">📊</span>Owner</button>
+  <button data-v="owner" onclick="nav('owner')"><span class="ic">📊</span>Operator</button>
   <button data-v="insights" onclick="nav('insights')"><span class="ic">🤖</span>Insights</button>
   <button data-v="settings" onclick="nav('settings')"><span class="ic">⚙️</span>Settings</button>
 </div>
@@ -199,7 +216,7 @@ function nav(v){
   document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});
   document.getElementById('v-'+v).classList.add('on');
   document.querySelectorAll('.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
-  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Owner Dashboard',insights:'AI Insights',settings:'Settings'}[v];
+  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Operator View',insights:'AI Insights',settings:'Settings'}[v];
   render();
 }
 
@@ -218,6 +235,7 @@ async function loadAll(){
     D.deals=r[0].data; D.sends=r[1].data; D.showings=r[2].data; D.offers=r[3].data; D.drops=r[4].data; D.feed=r[5].data;
     D.targets={}; r[6].data.forEach(function(t){D.targets[t.key]=Number(t.value)});
     await loadPlan();
+    await loadSop();
     render();
   }catch(e){
     var el=document.getElementById('dbErr'); el.style.display='block';
@@ -226,6 +244,93 @@ async function loadAll(){
 }
 
 // ---------- computed helpers ----------
+var SOP_CASH=[
+ {sec:'1. Contract Received',items:[
+  ['wb','Whiteboard filled (address, seller, prices, source, cash/novation)'],
+  ['notes','Closer notes read in CRM'],
+  ['acq','Spoke with acquisition rep about seller']]},
+ {sec:'2. Photo Collection',items:[
+  ['welcome','Welcome email sent (photo request)'],
+  ['wcall','Seller called right after email']]},
+ {sec:'3. Dispo Launch',items:[
+  ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
+  ['prec','"Photos Received" email sent to seller w/ dates'],
+  ['listing','Deal listing created'],
+  ['blast','Blast sent to buyer list'],
+  ['futask','Next-day buyer follow-up tasks set'],
+  ['invcomps','Investor base comps pulled → CRM'],
+  ['privya','Privy agent comps — active flips'],
+  ['privys','Privy agent comps — sold'],
+  ['privyp','Privy agent comps — pending / under contract'],
+  ['zillow','Zillow rental owners pulled (no PM cos)'],
+  ['fbpost','Facebook group post made'],
+  ['fbdm','FB comment buyers DMed'],
+  ['mls','Flat Fee MLS listed (day 3 — day 1 if rural/new market)']]},
+ {sec:'4. Buyer Outreach',items:[
+  ['dblcall','Buyer list double-called'],
+  ['compcall','Comp buyers called (agent + direct scripts)'],
+  ['feedback','All buyer feedback logged (interest / offers / objections)'],
+  ['s7','Day-7 seller touchpoint made']]},
+ {sec:'5. Offer & Assignment',items:[
+  ['5offers','5+ offers received before accepting'],
+  ['magic','Best offers maximized (magic questions)'],
+  ['assign','Assigned to best & highest · backups requested'],
+  ['title','Assignment contract + buyer details to title'],
+  ['emdwire','Non-refundable EMD wire instructed'],
+  ['emdrcpt','EMD receipt confirmed with title']]}
+];
+var SOP_NOVATION=[
+ {sec:'1. Contract Received',items:[
+  ['wb','Whiteboard filled (address, seller, prices, source, cash/novation)'],
+  ['notes','Closer notes read in CRM'],
+  ['acq','Spoke with acquisition rep about seller']]},
+ {sec:'2. Agent Photos & Setup',items:[
+  ['welcome','Welcome email sent (NO photo request — visit scheduled)'],
+  ['visit','Agent photo visit scheduled ("we are coming by")'],
+  ['access','Access handled (lockbox if vacant / seller or tenant coordinated)'],
+  ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
+  ['prec','"Photos Received" email sent to seller w/ dates']]},
+ {sec:'3. Agent-Led Dispo',items:[
+  ['walkco','Walkthroughs coordinated with seller/tenant (24hr notices)'],
+  ['offercom','Offer updates flowing from agent'],
+  ['psa','PSA sent to seller on best offer ("closing document to authorize")']]},
+ {sec:'4. Closing Discipline',items:[
+  ['title4','Title company check-ins every 4 days'],
+  ['buyerpace','Buyer pace-check near closing'],
+  ['emdrcpt','Non-refundable EMD receipt confirmed']]}
+];
+var SOP={};   // deal_id -> {item_key: true}
+async function loadSop(){
+  SOP={};
+  var r=await db.from('sop_checks').select('*');
+  if(r.error){ return; }
+  r.data.forEach(function(x){ if(!SOP[x.deal_id])SOP[x.deal_id]={}; SOP[x.deal_id][x.item_key]=true; });
+}
+function sopTemplate(d){ return d.deal_type==='Novation'?SOP_NOVATION:SOP_CASH; }
+function sopProgress(d){
+  var tpl=sopTemplate(d), total=0, done=0, checks=SOP[d.id]||{};
+  tpl.forEach(function(s){ s.items.forEach(function(it){ total++; if(checks[it[0]])done++; }); });
+  return {done:done,total:total};
+}
+async function toggleSop(dealId,key){
+  var checks=SOP[dealId]||{};
+  if(checks[key]){
+    var r=await db.from('sop_checks').delete().eq('deal_id',dealId).eq('item_key',key);
+    if(r.error)return alert(r.error.message);
+    delete checks[key];
+  } else {
+    var r2=await db.from('sop_checks').insert({deal_id:dealId,item_key:key});
+    if(r2.error)return alert(r2.error.message);
+    checks[key]=true;
+  }
+  SOP[dealId]=checks;
+  openDeal(dealId);
+}
+
+function dealLabel(d){
+  if(d.seller_name && d.address && d.seller_name!==d.address) return esc(d.seller_name)+' ('+esc(d.address)+')';
+  return esc(d.address);
+}
 function stageClass(s){
   if(s==='Our Listing Agents')return 'st-agents';
   if(s==='Waiting On Photos')return 'st-photos';
@@ -259,10 +364,10 @@ function kpiSet(from,to){
   return [
     {n:'Dials',v:sumFeed('dial',from,to),t:D.targets.dials_daily||110},
     {n:'Convos',v:sumFeed('convo',from,to),t:D.targets.convos_daily||36},
-    {n:'Reached',v:sumReached(from,to),t:D.targets.reached_daily||63},
-    {n:'Showings',v:countRows(D.showings,'shown_on',from,to),t:D.targets.showings_daily||4},
-    {n:'Offers',v:countRows(D.offers,'offered_on',from,to),t:D.targets.offers_daily||4},
-    {n:'Buyers+',v:sumFeed('buyer_added',from,to),t:D.targets.buyers_added_daily||6}
+    {n:'Buyers Sent To',v:sumReached(from,to),t:D.targets.reached_daily||63},
+    {n:'Walkthroughs',v:countRows(D.showings,'shown_on',from,to),t:D.targets.showings_daily||4},
+    {n:'Offers Received',v:countRows(D.offers,'offered_on',from,to),t:D.targets.offers_daily||4},
+    {n:'Buyers Added',v:sumFeed('buyer_added',from,to),t:D.targets.buyers_added_daily||6}
   ];
 }
 
@@ -274,7 +379,7 @@ var STAGE_HINT = {
   'Our Listing Agents':'Get it in front of listing agents today',
   'Waiting On Photos':'Chase photos, get this live today',
   'Photos Received (Live)':'Blast full buyer list, call top buyers',
-  'Listed on MLS':'Re-blast, book showings, follow up buyers',
+  'Listed on MLS':'Re-blast, book walkthroughs, follow up buyers',
   'EMD In':'Push closing: title, EMD status, buyer comms'
 };
 async function loadPlan(){
@@ -298,6 +403,17 @@ async function upPlan(dealId, patch){
 async function planCheck(dealId){
   var cur = PLAN[dealId] || {};
   await upPlan(dealId, { done: !cur.done });
+  renderPlan();
+}
+async function planTimeSel(dealId, sel){
+  if(sel.value==='__custom'){
+    var cur=PLAN[dealId]&&PLAN[dealId].time_block&&BLOCKS.indexOf(PLAN[dealId].time_block)<0?PLAN[dealId].time_block:'';
+    var v=prompt('Type a time (e.g. 7:15 AM or 2:30 - 3:00):', cur);
+    if(v===null){ renderPlan(); return; }
+    await upPlan(dealId,{time_block:v.trim()||null});
+  } else {
+    await upPlan(dealId,{time_block:sel.value||null});
+  }
   renderPlan();
 }
 async function planTime(dealId, val){
@@ -324,7 +440,14 @@ function renderPlan(){
     return;
   }
   var done = 0, h = '';
-  BLOCKS.forEach(function(b){
+  var customBlocks = [];
+  open.forEach(function(d){
+    var p=PLAN[d.id];
+    if(p&&p.time_block&&BLOCKS.indexOf(p.time_block)<0&&customBlocks.indexOf(p.time_block)<0) customBlocks.push(p.time_block);
+  });
+  customBlocks.sort();
+  var allBlocks = BLOCKS.slice(0,4).concat(customBlocks).concat(['Anytime']);
+  allBlocks.forEach(function(b){
     var group = open.filter(function(d){ var p=PLAN[d.id]; return (p&&p.time_block?p.time_block:'Anytime')===b; });
     if(!group.length) return;
     h += '<div class="blk"><div class="bh"><span class="bt">'+(b==='Anytime'?'Unscheduled — assign a time block':'Time block')+'</span><span class="btime">'+b+'</span></div>';
@@ -335,12 +458,13 @@ function renderPlan(){
       h += '<div class="prow'+(p.done?' pdone':'')+'">'
         +'<div style="display:flex;align-items:center;gap:9px">'
         +'<div class="cb" onclick="planCheck(\''+d.id+'\')">'+(p.done?'✓':'')+'</div>'
-        +'<div style="flex:1;cursor:pointer" onclick="openDeal(\''+d.id+'\')"><b style="font-size:13px">'+esc(d.address)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
-        +'<span class="pill'+(d.stage==='EMD In'?' gold':d.stage.indexOf('Ghosted')>=0?' red':d.stage==='Closed'?' green':'')+'">'+esc(d.stage)+'</span></div>'
+        +'<div style="flex:1;cursor:pointer" onclick="openDeal(\''+d.id+'\')"><b style="font-size:13px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
+        +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
         +'<div style="display:flex;gap:8px;margin-top:7px;align-items:flex-start">'
-        +'<select class="tsel" onchange="planTime(\''+d.id+'\',this.value)">'
+        +'<select class="tsel" onchange="planTimeSel(\''+d.id+'\',this)">'
         +'<option value=""'+(!p.time_block?' selected':'')+'>Time…</option>'
         +BLOCKS.slice(0,4).map(function(x){return '<option'+(p.time_block===x?' selected':'')+'>'+x+'</option>'}).join('')
+        +'<option value="__custom"'+(p.time_block&&BLOCKS.indexOf(p.time_block)<0?' selected':'')+'>'+(p.time_block&&BLOCKS.indexOf(p.time_block)<0?esc(p.time_block):'Custom…')+'</option>'
         +'</select>'
         +'<textarea class="pnote" rows="1" placeholder="'+esc(hint)+'" onblur="planNote(\''+d.id+'\',this.value)" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(p.note||'')+'</textarea>'
         +'</div></div>';
@@ -356,16 +480,17 @@ function dealCard(d,compact){
   var r=reached(d), min=D.targets.min_buyers_per_deal||100, pct=Math.min(100,Math.round(r/min*100));
   var nt=needsTouch(d), bo=bestOffer(d), du=daysUnder(d);
   var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
-    +'<div class="row"><div><b style="font-size:14px">'+esc(d.address)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
-    +'<span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></div>'
-    +'<div class="meta">'+(d.contract_date?'<span>Insp '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
+    +'<div class="row"><div><b style="font-size:14px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
+    +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
+    +'<div class="meta">'+(d.contract_date?'<span>Insp ends '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
     +'<span>Ask '+fmt$(currentPrice(d))+'</span><span>Best '+(bo?fmt$(bo):'—')+'</span><span>Fee '+fmt$(d.fee_target)+'</span>'
     +(MKT.indexOf(d.stage)>=0?(nt?'<span class="bad">⚠️ needs touch</span>':'<span class="ok">✓ touched today</span>'):'')+'</div>'
+    +(function(){var pr=sopProgress(d);return '<div style="font-size:10px;color:'+(pr.done>=pr.total?'var(--green)':'var(--mut)')+';margin-top:6px">SOP '+pr.done+'/'+pr.total+(pr.done>=pr.total?' ✓':'')+'</div>'})()
     +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div><span style="font-size:10px;color:var(--mut);white-space:nowrap">'+r+'/'+min+' buyers</span></div>';
   if(!compact){
     h+='<div class="qbtns" onclick="event.stopPropagation()">'
       +'<button onclick="openLog(\'send\',\''+d.id+'\')">+ Send</button>'
-      +'<button onclick="openLog(\'showing\',\''+d.id+'\')">+ Showing</button>'
+      +'<button onclick="openLog(\'showing\',\''+d.id+'\')">+ Walkthrough</button>'
       +'<button onclick="openLog(\'offer\',\''+d.id+'\')">+ Offer</button>'
       +'<button onclick="openLog(\'drop\',\''+d.id+'\')">Price drop</button></div>';
   }
@@ -385,45 +510,79 @@ function render(){
   var need=open.filter(needsTouch);
   renderPlan();
 
-  // DEALS
+  // DEALS — grouped by stage
   document.getElementById('openCount').textContent=open.length+' deals';
-  document.getElementById('dealsOpen').innerHTML=open.map(function(d){return dealCard(d,false)}).join('')||'<p style="font-size:12px;color:var(--mut)">Tap + New deal to add your first contract.</p>';
+  var dotColors2={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37'};
+  var dhtml='';
+  STAGES.forEach(function(s){
+    if(DEAD.indexOf(s)>=0) return;
+    var group=open.filter(function(d){return d.stage===s});
+    if(!group.length) return;
+    var val=group.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
+    dhtml+='<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px"><div style="width:10px;height:10px;border-radius:50%;background:'+(dotColors2[s]||'#93A1B8')+'"></div><span style="font-size:14px;font-weight:700">'+s+'</span><span style="font-size:11px;color:var(--mut)">'+group.length+' deals · '+fmt$(val)+'</span></div>';
+    dhtml+=group.map(function(d){return dealCard(d,false)}).join('');
+  });
+  document.getElementById('dealsOpen').innerHTML=dhtml||'<p style="font-size:12px;color:var(--mut)">Tap + New deal to add your first contract.</p>';
   document.getElementById('dealsDone').innerHTML=D.deals.filter(function(d){return DEAD.indexOf(d.stage)>=0}).map(function(d){return dealCard(d,true)}).join('')||'<p style="font-size:12px;color:var(--mut)">None yet.</p>';
 
-  // OWNER
-  var fee=open.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
-  var min=D.targets.min_buyers_per_deal||100;
-  var under=open.filter(function(d){return reached(d)<min}).length;
-  var oc=document.getElementById('ownerCards');
-  oc.innerHTML='<div class="kpi"><div class="n">Open pipeline fee $</div><div class="v">'+fmt$(fee)+'</div></div>'
-    +'<div class="kpi" style="background:'+(need.length?'#3B1212':'var(--card)')+'"><div class="n" style="color:'+(need.length?'#FCA5A5':'var(--mut)')+'">Not touched today</div><div class="v" style="color:'+(need.length?'#FCA5A5':'var(--green)')+'">'+need.length+'</div><div style="font-size:10px;color:#FCA5A5">'+need.map(dealCode).join(', ')+'</div></div>'
-    +'<div class="kpi"><div class="n">Under '+min+'-buyer min</div><div class="v" style="color:'+(under?'var(--amber)':'var(--green)')+'">'+under+'</div></div>'
-    +'<div class="kpi"><div class="n">Offers pending</div><div class="v">'+pendingOffers()+'</div></div>';
+  // OPERATOR VIEW
+  var dotColors={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37','Closed':'#10B981','Ghosted':'#EF4444','Ghosted w/ Memorandum':'#EF4444'};
   var sc=document.getElementById('stageChips'); sc.innerHTML='';
   STAGES.forEach(function(s){
-    var c=D.deals.filter(function(d){return d.stage===s}).length;
-    var dotColors={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37','Closed':'#10B981','Ghosted':'#EF4444','Ghosted w/ Memorandum':'#EF4444'};
-  sc.innerHTML+='<div class="chip"><div style="width:8px;height:8px;border-radius:50%;background:'+(dotColors[s]||'#93A1B8')+';margin:0 auto 4px"></div><div class="v">'+c+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+'</div></div>';
+    var ds=D.deals.filter(function(d){return d.stage===s});
+    if(!ds.length && DEAD.indexOf(s)>=0) return;
+    var val=ds.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
+    sc.innerHTML+='<div class="chip"><div style="width:8px;height:8px;border-radius:50%;background:'+(dotColors[s]||'#93A1B8')+';margin:0 auto 4px"></div><div class="v">'+fmt$(val)+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+' · '+ds.length+'</div></div>';
   });
-  var ws=document.getElementById('weekScore'); ws.innerHTML='';
-  kpiSet(daysAgo(6),t).forEach(function(k){
-    var wt=k.t*7, pct=Math.min(100,Math.round(k.v/wt*100));
-    var col=pct>=90?'var(--green)':pct>=70?'var(--blue)':'var(--red)';
-    ws.innerHTML+='<div class="scoreline"><span class="lbl">'+k.n+'</span><div class="sbar"><i style="width:'+pct+'%;background:'+col+'"></i></div><span class="num">'+k.v+' / '+wt+' ('+pct+'%)</span></div>';
-  });
-  var m=daysAgo(29);
-  var dl=sumFeed('dial',m,t), cv=sumFeed('convo',m,t), rc=sumReached(m,t), sh=countRows(D.showings,'shown_on',m,t), of=countRows(D.offers,'offered_on',m,t);
-  document.getElementById('leaks').innerHTML=
-    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Convos per 100 dials</span><b>'+(dl?Math.round(cv/dl*1000)/10:'—')+'</b></div>'
-    +'<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Showings per 100 reached</span><b>'+(rc?Math.round(sh/rc*1000)/10:'—')+'</b></div>'
-    +'<div class="row" style="font-size:12px"><span style="color:var(--mut)">Offers per 10 showings</span><b>'+(sh?Math.round(of/sh*100)/10:'—')+'</b></div>';
-  var mStart=t.slice(0,8)+'01';
-  var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||d.contract_date||'')>=mStart)});
-  var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
-  var at=D.targets.assigned_monthly||10, rt=D.targets.revenue_monthly||100000;
-  document.getElementById('pace').innerHTML=
-    '<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Assignments closed '+closed.length+' / '+at+'</div><div class="sbar" style="margin-bottom:10px"><i style="width:'+Math.min(100,Math.round(closed.length/at*100))+'%;background:var(--blue)"></i></div>'
-    +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Revenue closed '+fmt$(rev)+' / '+fmt$(rt)+'</div><div class="sbar"><i style="width:'+Math.min(100,Math.round(rev/rt*100))+'%;background:var(--gold)"></i></div>';
+
+  document.getElementById('ntCount').textContent=need.length?need.length+' deals':'— all touched ✓';
+  document.getElementById('ntList').innerHTML=need.length?
+    '<div style="font-size:12px;color:#FCA5A5;line-height:1.9">'+need.map(function(x){return dealLabel(x)}).join(' · ')+'</div>':
+    '<div style="font-size:12px;color:var(--green)">Every open contract has been worked today. ✓</div>';
+  document.getElementById('ntList').style.borderColor=need.length?'var(--red)':'var(--line)';
+
+  function boardRows(list){
+    if(!list.length) return '<tr><td style="color:var(--mut)">None live right now.</td></tr>';
+    var h='<tr><th>Deal</th><th>Buyers Sent</th><th>Days w/ Photos</th><th>Inspection Ends</th></tr>';
+    list.forEach(function(d){
+      var r=reached(d), min=D.targets.min_buyers_per_deal||100;
+      var bCls=r>=min?'ok-green':(r<min*0.4?'warn-red':'');
+      var dp=d.photos_on?Math.floor((new Date(today())-new Date(d.photos_on))/86400000):null;
+      var insp='—', iCls='';
+      if(d.contract_date){
+        var left=Math.ceil((new Date(d.contract_date)-new Date(today()))/86400000);
+        if(left<0){insp='PASSED';iCls='warn-red';}
+        else if(left===0){insp='⚠ TODAY';iCls='warn-red';}
+        else if(left===1){insp='⚠ TOMORROW';iCls='warn-red';}
+        else if(left<=3){insp='⚠ '+left+' days';iCls='warn-amber';}
+        else insp=left+' days';
+      }
+      h+='<tr><td onclick="openDeal(\''+d.id+'\')" style="cursor:pointer">'+dealLabel(d)+'</td>'
+        +'<td class="'+bCls+'">'+r+'/'+min+(r>=min?' ✓':'')+'</td>'
+        +'<td>'+(dp!=null?dp+' days':'—')+'</td>'
+        +'<td class="'+iCls+'">'+insp+'</td></tr>';
+    });
+    return h;
+  }
+  var live=open.filter(function(d){return MKT.indexOf(d.stage)>=0&&d.stage!=='Waiting On Photos'});
+  document.getElementById('assignBoard').innerHTML=boardRows(live.filter(function(d){return d.deal_type!=='Novation'}));
+  document.getElementById('novBoard').innerHTML=boardRows(live.filter(function(d){return d.deal_type==='Novation'}));
+
+  // Rep KPI table: today / this week / month-to-date
+  var now=new Date(); var mStart2=t.slice(0,8)+'01';
+  document.getElementById('kpiMonthName').textContent=now.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  var dToday=kpiSet(t,t), dWeek=kpiSet(daysAgo(6),t), dMonth=kpiSet(mStart2,t);
+  var dow=now.getDay(); var elapsedM=now.getDate();
+  var kh='<tr><th></th><th>Today</th><th>This Week</th><th>Month-to-Date</th></tr>';
+  for(var i=0;i<dToday.length;i++){
+    var kT=dToday[i],kW=dWeek[i],kM=dMonth[i];
+    var wT=kT.t*7, mT=kT.t*elapsedM;
+    kh+='<tr><td>'+kT.n+'</td>'
+      +'<td class="'+(kT.v>=kT.t?'ok-green':'')+'">'+kT.v+'/'+kT.t+(kT.v>=kT.t?' ✓':'')+'</td>'
+      +'<td class="'+(kW.v>=wT?'ok-green':'')+'">'+kW.v+'/'+wT+'</td>'
+      +'<td class="'+(kM.v>=mT?'ok-green':'')+'">'+kM.v+'/'+mT.toLocaleString()+'</td></tr>';
+  }
+  document.getElementById('kpiTable').innerHTML=kh;
 
   // INSIGHTS
   document.getElementById('insightStats').innerHTML=buildReport(true);
@@ -468,7 +627,7 @@ document.getElementById('modal').addEventListener('click',function(e){ if(e.targ
 
 function dealOptions(sel){
   return D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0}).map(function(d){
-    return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+dealCode(d)+' — '+esc(d.address)+'</option>';
+    return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+dealCode(d)+' — '+dealLabel(d)+'</option>';
   }).join('');
 }
 
@@ -486,17 +645,17 @@ function openLog(kind,dealId){
     +'<div><label>Buyers reached</label><input type="number" id="ls_n" value="63"></div></div>'
     +'<button class="btn p big" onclick="saveSend()">Save send</button>';
   } else if(kind==='showing'){
-    h='<h2>Log a showing</h2>'
+    h='<h2>Log a walkthrough</h2>'
     +'<label>Deal</label><select id="lw_deal">'+dealOptions(dealId)+'</select>'
     +'<label>Buyer</label><input id="lw_buyer" placeholder="Buyer name">'
     +'<label>Outcome</label><select id="lw_out"><option>Interested</option><option>Thinking</option><option>Pass</option><option>Offer Coming</option></select>'
-    +'<button class="btn p big" onclick="saveShowing()">Save showing</button>';
+    +'<button class="btn p big" onclick="saveShowing()">Save walkthrough</button>';
   } else if(kind==='offer'){
-    h='<h2>Log an offer</h2>'
+    h='<h2>Log an offer received</h2>'
     +'<label>Deal</label><select id="lo_deal">'+dealOptions(dealId)+'</select>'
     +'<label>Buyer</label><input id="lo_buyer" placeholder="Buyer name">'
     +'<label>Amount</label><input type="number" id="lo_amt" placeholder="192000">'
-    +'<button class="btn p big" onclick="saveOffer()">Save offer</button>';
+    +'<button class="btn p big" onclick="saveOffer()">Save offer received</button>';
   } else if(kind==='drop'){
     var d=D.deals.find(function(x){return x.id===dealId});
     h='<h2>Price drop</h2>'
@@ -542,12 +701,14 @@ async function saveDrop(){
 function openDealForm(existing){
   var d=existing||{};
   var h='<h2>'+(existing?'Edit deal':'New deal')+'</h2>'
+  +'<label>Seller name</label><input id="f_seller" value="'+esc(d.seller_name||'')+'">'
   +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
   +'<label>Location / area</label><input id="f_area" value="'+esc(d.area||'')+'">'
   +'<div class="half"><div><label>Contract price</label><input type="number" id="f_cp" value="'+(d.contract_price||'')+'"></div><div><label>Asking price</label><input type="number" id="f_ask" value="'+(d.start_ask||'')+'"></div></div>'
-  +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Occupancy</label><select id="f_occ">'+['','Vacant','Tenant','Owner Occupied'].map(function(o){return '<option'+(d.occupancy===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
+  +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Deal type</label><select id="f_type">'+['Cash','Novation','Double Close'].map(function(o){return '<option'+((d.deal_type||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
+  +'<div class="half"><div><label>Occupancy</label><select id="f_occ">'+['','Vacant','Tenant','Owner Occupied'].map(function(o){return '<option'+(d.occupancy===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div><div><label>Location / area</label><input id="f_area2" style="display:none"></div></div>'
   +'<label>Stage</label><select id="f_stage">'+STAGES.map(function(s){return '<option'+(d.stage===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
-  +'<div class="half"><div><label>Inspection deadline</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
+  +'<div class="half"><div><label>Inspection period ends</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
   +'<div id="f_revwrap" style="display:'+(d.stage==='Closed'?'block':'none')+'"><label>Revenue closed ($)</label><input type="number" id="f_rev" value="'+(d.revenue_closed||'')+'"></div>'
   +'<label>Notes</label><textarea id="f_notes" rows="2">'+esc(d.notes||'')+'</textarea>'
   +'<button class="btn g big" onclick="saveDeal(\''+(d.id||'')+'\')">'+(existing?'Save changes':'Add deal')+'</button>'
@@ -556,12 +717,12 @@ function openDealForm(existing){
   document.getElementById('f_stage').addEventListener('change',function(){ document.getElementById('f_revwrap').style.display=this.value==='Closed'?'block':'none'; });
 }
 async function saveDeal(id){
-  var row={address:document.getElementById('f_addr').value,
+  var row={seller_name:document.getElementById('f_seller').value||null,address:document.getElementById('f_addr').value,
     area:document.getElementById('f_area').value,
     contract_price:Number(document.getElementById('f_cp').value)||null,
     start_ask:Number(document.getElementById('f_ask').value)||null,
     fee_target:Number(document.getElementById('f_fee').value)||null,
-    occupancy:document.getElementById('f_occ').value||null,
+    occupancy:document.getElementById('f_occ').value||null,deal_type:document.getElementById('f_type').value||'Cash',
     stage:document.getElementById('f_stage').value,
     contract_date:document.getElementById('f_insp').value||null,
     closing_deadline:document.getElementById('f_dl').value||null,
@@ -587,16 +748,32 @@ function openDeal(id){
     D.offers.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.offered_on,t:'💰 Offer '+fmt$(x.amount)+' — '+esc(x.buyer||'')+' ['+esc(x.status)+']'}}),
     D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
-  var h='<h2>'+esc(d.address)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
+  var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
   +'<div class="qbtns" style="margin-bottom:14px">'
   +'<button onclick="closeModal();openLog(\'send\',\''+id+'\')">+ Send</button>'
-  +'<button onclick="closeModal();openLog(\'showing\',\''+id+'\')">+ Showing</button>'
+  +'<button onclick="closeModal();openLog(\'showing\',\''+id+'\')">+ Walkthrough</button>'
   +'<button onclick="closeModal();openLog(\'offer\',\''+id+'\')">+ Offer</button>'
   +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
   +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Edit</button></div>'
-  +'<div class="sec" style="margin-top:0">Activity timeline</div>'
+  +(function(){
+    var tpl=sopTemplate(d), checks=SOP[d.id]||{}, pr=sopProgress(d);
+    var h='<div class="sec" style="margin-top:0">SOP checklist <small>'+pr.done+' / '+pr.total+'</small></div>';
+    tpl.forEach(function(s){
+      var secDone=s.items.every(function(it){return checks[it[0]]});
+      h+='<div style="font-size:12px;font-weight:700;color:'+(secDone?'var(--green)':'var(--mut)')+';margin:10px 0 5px">'+(secDone?'✓ ':'')+s.sec+'</div>';
+      h+='<div style="background:var(--card2);border-radius:8px;padding:6px 10px">';
+      s.items.forEach(function(it){
+        var dn=checks[it[0]];
+        h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;'+(dn?'color:var(--mut);text-decoration:line-through':'color:var(--text)')+'" onclick="toggleSop(\''+d.id+'\',\''+it[0]+'\')">'
+          +'<span style="min-width:16px">'+(dn?'☑':'☐')+'</span><span>'+it[1]+'</span></div>';
+      });
+      h+='</div>';
+    });
+    return h;
+  })()
+  +'<div class="sec">Activity timeline</div>'
   +'<div class="tl">'+(evs.map(function(e){return '<div class="ev"><div class="d">'+e.d+'</div>'+e.t+'</div>'}).join('')||'<p style="font-size:12px;color:var(--mut)">No activity yet — get it in front of buyers.</p>')+'</div>';
   openModal(h);
 }
