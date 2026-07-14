@@ -143,11 +143,8 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Not touched today <small id="ntCount"></small></div>
     <div class="card" id="ntList" style="border-color:var(--red)"></div>
 
-    <div class="sec">Live assignments board <small>(cash / double close)</small></div>
-    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="assignBoard"></table></div>
-
-    <div class="sec">Live novations board</div>
-    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="novBoard"></table></div>
+    <div class="sec">Deadlines <small>— inspection &amp; closing</small></div>
+    <div class="card" id="deadlines"></div>
 
     <div class="sec">Rep KPIs — <span id="kpiMonthName"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="kpiTable"></table></div>
@@ -558,32 +555,30 @@ function render(){
     '<div style="font-size:12px;color:var(--green)">Every open contract has been worked today. ✓</div>';
   document.getElementById('ntList').style.borderColor=need.length?'var(--red)':'var(--line)';
 
-  function boardRows(list){
-    if(!list.length) return '<tr><td style="color:var(--mut)">None live right now.</td></tr>';
-    var h='<tr><th>Deal</th><th>Buyers Sent</th><th>Days w/ Photos</th><th>Inspection Ends</th></tr>';
-    list.forEach(function(d){
-      var r=reached(d), min=D.targets.min_buyers_per_deal||100;
-      var bCls=r>=min?'ok-green':(r<min*0.4?'warn-red':'');
-      var dp=d.photos_on?Math.floor((new Date(today())-new Date(d.photos_on))/86400000):null;
-      var insp='—', iCls='';
-      if(d.contract_date){
-        var left=Math.ceil((new Date(d.contract_date)-new Date(today()))/86400000);
-        if(left<0){insp='PASSED';iCls='warn-red';}
-        else if(left===0){insp='⚠ TODAY';iCls='warn-red';}
-        else if(left===1){insp='⚠ TOMORROW';iCls='warn-red';}
-        else if(left<=3){insp='⚠ '+left+' days';iCls='warn-amber';}
-        else insp=left+' days';
-      }
-      h+='<tr><td onclick="openDeal(\''+d.id+'\')" style="cursor:pointer">'+dealLabel(d)+'</td>'
-        +'<td class="'+bCls+'">'+r+'/'+min+(r>=min?' ✓':'')+'</td>'
-        +'<td>'+(dp!=null?dp+' days':'—')+'</td>'
-        +'<td class="'+iCls+'">'+insp+'</td></tr>';
+  // Deadlines — inspection & closing within 7 days (or overdue)
+  var dlRows=[];
+  open.forEach(function(d){
+    [['contract_date','Inspection ends'],['closing_deadline','Closing']].forEach(function(f){
+      var dt=d[f[0]]; if(!dt) return;
+      var left=Math.ceil((new Date(dt)-new Date(t))/86400000);
+      if(left>7) return;
+      var label, cls;
+      if(left<0){label='OVERDUE '+Math.abs(left)+'d'; cls='warn-red';}
+      else if(left===0){label='⚠ TODAY'; cls='warn-red';}
+      else if(left===1){label='⚠ TOMORROW'; cls='warn-red';}
+      else if(left<=3){label='⚠ '+left+' days'; cls='warn-amber';}
+      else {label=left+' days'; cls='';}
+      dlRows.push({d:d,type:f[1],left:left,label:label,cls:cls,date:dt});
     });
-    return h;
-  }
-  var live=open.filter(function(d){return MKT.indexOf(d.stage)>=0&&d.stage!=='Waiting On Photos'});
-  document.getElementById('assignBoard').innerHTML=boardRows(live.filter(function(d){return d.deal_type!=='Novation'}));
-  document.getElementById('novBoard').innerHTML=boardRows(live.filter(function(d){return d.deal_type==='Novation'}));
+  });
+  dlRows.sort(function(a,b){return a.left-b.left});
+  document.getElementById('deadlines').innerHTML=dlRows.length?
+    dlRows.map(function(x){
+      return '<div onclick="openDeal(\''+x.d.id+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer">'
+        +'<span style="font-size:12px">'+dealLabel(x.d)+' <span style="color:var(--mut);font-size:10px">· '+x.type+' '+x.date.slice(5)+'</span></span>'
+        +'<span class="'+x.cls+'" style="font-size:11px;white-space:nowrap">'+x.label+'</span></div>';
+    }).join('')+'<style>#deadlines > div:last-child{border-bottom:none}</style>':
+    '<div style="font-size:12px;color:var(--mut)">No inspection or closing deadlines in the next 7 days. (Deadlines come from each deal\'s dates — set them via Edit.)</div>';
 
   // Rep KPI table: today / this week / month-to-date
   var now=new Date(); var mStart2=t.slice(0,8)+'01';
