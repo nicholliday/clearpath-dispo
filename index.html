@@ -143,9 +143,6 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Not touched today <small id="ntCount"></small></div>
     <div class="card" id="ntList" style="border-color:var(--red)"></div>
 
-    <div class="sec">Deadlines <small>— inspection &amp; closing</small></div>
-    <div class="card" id="deadlines"></div>
-
     <div class="sec">Rep KPIs — <span id="kpiMonthName"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="kpiTable"></table></div>
 
@@ -484,7 +481,20 @@ function dealCard(d,compact){
   var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
     +'<div class="row"><div><b style="font-size:14px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
     +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
-    +'<div class="meta">'+(d.contract_date?'<span>Insp ends '+d.contract_date.slice(5)+'</span>':'')+(d.closing_deadline?'<span>Close '+d.closing_deadline.slice(5)+'</span>':'')
+    +(function(){
+      function dl(dt,label){
+        if(!dt) return '';
+        var left=Math.ceil((new Date(dt)-new Date(today()))/86400000);
+        var txt,col;
+        if(left<0){txt=label+' OVERDUE '+Math.abs(left)+'d';col='var(--red)';}
+        else if(left===0){txt='⚠ '+label+' TODAY';col='var(--red)';}
+        else if(left===1){txt='⚠ '+label+' tomorrow';col='var(--red)';}
+        else if(left<=3){txt='⚠ '+label+' in '+left+'d';col='var(--amber)';}
+        else {txt=label+' in '+left+'d';col='var(--mut)';}
+        return '<span style="color:'+col+';font-weight:'+(left<=3?'700':'400')+'">'+txt+'</span>';
+      }
+      return '<div class="meta">'+dl(d.contract_date,'Insp')+dl(d.closing_deadline,'Close');
+    })()
     +'<span>Ask '+fmt$(currentPrice(d))+'</span><span>Best '+(bo?fmt$(bo):'—')+'</span><span>Fee '+fmt$(d.fee_target)+'</span>'
     +(MKT.indexOf(d.stage)>=0?(nt?'<span class="bad">⚠️ needs touch</span>':'<span class="ok">✓ touched today</span>'):'')+'</div>'
     +(function(){var pr=sopProgress(d);var pct=pr.total?Math.round(pr.done/pr.total*100):0;
@@ -538,10 +548,11 @@ function render(){
   var dotColors={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37','Closed':'#10B981','Ghosted':'#EF4444','Ghosted w/ Memorandum':'#EF4444'};
   var sc=document.getElementById('stageChips'); sc.innerHTML='';
   STAGES.forEach(function(s){
+    if(s==='Our Listing Agents') return;
     var ds=D.deals.filter(function(d){return d.stage===s});
     if(!ds.length && DEAD.indexOf(s)>=0) return;
     var val=ds.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
-    sc.innerHTML+='<div class="chip"><div style="width:8px;height:8px;border-radius:50%;background:'+(dotColors[s]||'#93A1B8')+';margin:0 auto 4px"></div><div class="v">'+fmt$(val)+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo').replace('Our Listing Agents','Listing Agents')+' · '+ds.length+'</div></div>';
+    sc.innerHTML+='<div class="chip"><div style="width:8px;height:8px;border-radius:50%;background:'+(dotColors[s]||'#93A1B8')+';margin:0 auto 4px"></div><div class="v">'+fmt$(val)+'</div><div style="font-size:13px;font-weight:700;color:var(--gold);margin:2px 0">'+ds.length+' contract'+(ds.length===1?'':'s')+'</div><div class="n">'+s.replace('Photos Received (Live)','Photos Live').replace('Ghosted w/ Memorandum','Ghosted+Memo')+'</div></div>';
   });
 
   document.getElementById('ntCount').textContent=need.length?need.length+' deals':'— all touched ✓';
@@ -554,31 +565,6 @@ function render(){
     }).join('')+'<style>#ntList > div:last-child{border-bottom:none}</style>':
     '<div style="font-size:12px;color:var(--green)">Every open contract has been worked today. ✓</div>';
   document.getElementById('ntList').style.borderColor=need.length?'var(--red)':'var(--line)';
-
-  // Deadlines — inspection & closing within 7 days (or overdue)
-  var dlRows=[];
-  open.forEach(function(d){
-    [['contract_date','Inspection ends'],['closing_deadline','Closing']].forEach(function(f){
-      var dt=d[f[0]]; if(!dt) return;
-      var left=Math.ceil((new Date(dt)-new Date(t))/86400000);
-      if(left>7) return;
-      var label, cls;
-      if(left<0){label='OVERDUE '+Math.abs(left)+'d'; cls='warn-red';}
-      else if(left===0){label='⚠ TODAY'; cls='warn-red';}
-      else if(left===1){label='⚠ TOMORROW'; cls='warn-red';}
-      else if(left<=3){label='⚠ '+left+' days'; cls='warn-amber';}
-      else {label=left+' days'; cls='';}
-      dlRows.push({d:d,type:f[1],left:left,label:label,cls:cls,date:dt});
-    });
-  });
-  dlRows.sort(function(a,b){return a.left-b.left});
-  document.getElementById('deadlines').innerHTML=dlRows.length?
-    dlRows.map(function(x){
-      return '<div onclick="openDeal(\''+x.d.id+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer">'
-        +'<span style="font-size:12px">'+dealLabel(x.d)+' <span style="color:var(--mut);font-size:10px">· '+x.type+' '+x.date.slice(5)+'</span></span>'
-        +'<span class="'+x.cls+'" style="font-size:11px;white-space:nowrap">'+x.label+'</span></div>';
-    }).join('')+'<style>#deadlines > div:last-child{border-bottom:none}</style>':
-    '<div style="font-size:12px;color:var(--mut)">No inspection or closing deadlines in the next 7 days. (Deadlines come from each deal\'s dates — set them via Edit.)</div>';
 
   // Rep KPI table: today / this week / month-to-date
   var now=new Date(); var mStart2=t.slice(0,8)+'01';
