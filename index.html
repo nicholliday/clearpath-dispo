@@ -146,6 +146,12 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Rep KPIs — <span id="kpiMonthName"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="kpiTable"></table></div>
 
+    <div class="sec">Deal velocity <small>(builds as deals move stages)</small></div>
+    <div class="card" id="velocity"></div>
+
+    <div class="sec">SOP discipline</div>
+    <div class="card" id="discipline"></div>
+
     <div class="sec">Leak finder <small>(last 30 days)</small></div>
     <div class="card" id="leaks"></div>
 
@@ -155,9 +161,18 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 
   <!-- INSIGHTS -->
   <div class="view" id="v-insights">
-    <div class="card" id="insightStats"><div class="loading">Loading…</div></div>
+    <div class="sec" style="margin-top:0">This week vs last week</div>
+    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="wkTable"></table></div>
+
+    <div class="sec">Aging live deals <small>(10+ days live)</small></div>
+    <div class="card" id="aging"></div>
+
+    <div class="sec">Offers pending a decision</div>
+    <div class="card" id="pendOffers"></div>
+
+    <div class="sec">Send to Claude</div>
     <button class="btn g big" onclick="copyReport()">Copy full report for Claude</button>
-    <p style="font-size:11px;color:var(--mut);margin-top:8px">Tap the button, then paste into a Claude chat and ask: "Analyze my dispo operation — nurture discipline, rep vs targets, conversion leaks, and what to fix next week."</p>
+    <p style="font-size:11px;color:var(--mut);margin-top:8px">Paste into a Claude chat: "Analyze my dispo operation — nurture discipline, rep vs targets, velocity, leaks, and what to fix next week."</p>
   </div>
 
   <!-- SETTINGS -->
@@ -230,6 +245,13 @@ async function loadAll(){
     D.targets={}; r[6].data.forEach(function(t){D.targets[t.key]=Number(t.value)});
     await loadPlan();
     await loadSop();
+    D.fb=[]; D.hist=[]; D.intelErr=null;
+    try{
+      var rf=await db.from('feedback').select('*');
+      var rh=await db.from('stage_history').select('*');
+      if(rf.error||rh.error){ D.intelErr=(rf.error||rh.error).message; }
+      else { D.fb=rf.data; D.hist=rh.data; }
+    }catch(e){ D.intelErr=''+e; }
     render();
   }catch(e){
     var el=document.getElementById('dbErr'); el.style.display='block';
@@ -344,7 +366,8 @@ function lastTouch(d){
     D.sends.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.sent_on}),
     D.showings.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.shown_on}),
     D.offers.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.offered_on}),
-    D.drops.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.dropped_on}));
+    D.drops.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.dropped_on}),
+    D.fb.filter(function(x){return x.deal_id===d.id}).map(function(x){return x.fb_on}));
   return ds.length?ds.sort().pop():null;
 }
 function needsTouch(d){ return MKT.indexOf(d.stage)>=0 && lastTouch(d)!==today(); }
@@ -420,6 +443,17 @@ async function planNote(dealId, val){
   var done=open.filter(function(d){return PLAN[d.id]&&PLAN[d.id].done}).length;
   document.getElementById('planProg').textContent=open.length?done+' / '+open.length+' done':'';
 }
+function priceDropAlert(d){
+  if(['Photos Received (Live)','Listed on MLS'].indexOf(d.stage)<0) return '';
+  if(!d.photos_on) return '';
+  var offers=D.offers.filter(function(o){return o.deal_id===d.id}).length;
+  if(offers>0) return '';
+  var dl=Math.floor((new Date(today())-new Date(d.photos_on))/86400000);
+  if(dl<5) return '';
+  var th = dl>=13?13:dl>=8?8:5;
+  var col = dl>=13?'var(--red)':'var(--amber)';
+  return '<div style="margin-top:6px;font-size:11px;font-weight:700;color:'+col+'">📉 Day '+dl+' live, zero offers — SOP day-'+th+' price review due <button class="act" style="margin-left:6px" onclick="event.stopPropagation();openLog(\'drop\',\''+d.id+'\')">Drop price</button></div>';
+}
 function renderPlan(){
   var el = document.getElementById('planBlocks');
   if(PLAN_ERR){
@@ -466,7 +500,7 @@ function renderPlan(){
         +'<option value="__custom"'+(p.time_block&&BLOCKS.indexOf(p.time_block)<0?' selected':'')+'>'+(p.time_block&&BLOCKS.indexOf(p.time_block)<0?esc(p.time_block):'Custom…')+'</option>'
         +'</select>'
         +'<textarea class="pnote" rows="1" placeholder="'+esc(hint)+'" onblur="planNote(\''+d.id+'\',this.value)" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'">'+esc(p.note||'')+'</textarea>'
-        +'</div></div>';
+        +'</div>'+priceDropAlert(d)+'</div>';
     });
     h += '</div>';
   });
@@ -511,7 +545,8 @@ function dealCard(d,compact){
       +'<button onclick="openLog(\'send\',\''+d.id+'\')">+ Send</button>'
       +'<button onclick="openLog(\'showing\',\''+d.id+'\')">+ Walkthrough</button>'
       +'<button onclick="openLog(\'offer\',\''+d.id+'\')">+ Offer</button>'
-      +'<button onclick="openLog(\'drop\',\''+d.id+'\')">Price drop</button></div>';
+      +'<button onclick="openLog(\'drop\',\''+d.id+'\')">Price drop</button>'
+      +'<button onclick="openLog(\'feedback\',\''+d.id+'\')">💬 Feedback</button></div>';
   }
   return h+'</div>';
 }
@@ -582,6 +617,43 @@ function render(){
   }
   document.getElementById('kpiTable').innerHTML=kh;
 
+  // Velocity from stage history + fields
+  function avgDays(pairs){ if(!pairs.length) return null; var s=pairs.reduce(function(a,x){return a+x},0); return Math.round(s/pairs.length*10)/10; }
+  function histDate(dealId, stage){
+    var rows=D.hist.filter(function(h){return h.deal_id===dealId&&h.stage===stage}).sort(function(a,b){return a.entered_on<b.entered_on?-1:1});
+    return rows.length?rows[0].entered_on:null;
+  }
+  var vWait=[], vOffer=[], vClose=[];
+  D.deals.forEach(function(d){
+    var w=histDate(d.id,'Waiting On Photos'), pl=histDate(d.id,'Photos Received (Live)')||d.photos_on;
+    if(w&&pl&&pl>=w) vWait.push((new Date(pl)-new Date(w))/86400000);
+    if(pl){
+      var offs=D.offers.filter(function(o){return o.deal_id===d.id&&o.offered_on>=pl});
+      if(offs.length){ var first=offs.map(function(o){return o.offered_on}).sort()[0]; vOffer.push((new Date(first)-new Date(pl))/86400000); }
+    }
+    var e=histDate(d.id,'EMD In'), c=histDate(d.id,'Closed');
+    if(e&&c&&c>=e) vClose.push((new Date(c)-new Date(e))/86400000);
+  });
+  function vRow(label,val,n){ return '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">'+label+'</span><b>'+(val==null?'— <span style="font-size:10px;color:var(--mut)">(no data yet)</span>':val+' days <span style="font-size:10px;color:var(--mut)">('+n+' deals)</span>')+'</b></div>'; }
+  document.getElementById('velocity').innerHTML=
+    vRow('Contract → photos live',avgDays(vWait),vWait.length)
+    +vRow('Live → first offer',avgDays(vOffer),vOffer.length)
+    +vRow('EMD in → closed',avgDays(vClose),vClose.length);
+
+  // SOP discipline: % of live deals with launch section fully checked
+  var liveDeals=open.filter(function(d){return ['Photos Received (Live)','Listed on MLS','EMD In'].indexOf(d.stage)>=0});
+  var launched=0;
+  liveDeals.forEach(function(d){
+    var tpl=sopTemplate(d), checks=SOP[d.id]||{};
+    var sec=tpl.find(function(s){return s.sec.indexOf('Dispo Launch')>=0||s.sec.indexOf('Agent Photos')>=0});
+    if(sec&&sec.items.every(function(it){return checks[it[0]]})) launched++;
+  });
+  var discPct=liveDeals.length?Math.round(launched/liveDeals.length*100):null;
+  document.getElementById('discipline').innerHTML=discPct==null?
+    '<div style="font-size:12px;color:var(--mut)">No live deals right now.</div>':
+    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Live deals with launch checklist complete</span><b style="color:'+(discPct>=80?'var(--green)':discPct>=50?'var(--amber)':'var(--red)')+'">'+launched+' / '+liveDeals.length+' ('+discPct+'%)</b></div>'
+    +'<div style="font-size:11px;color:var(--mut)">Launch = comps pulled, blast sent, FB posted, dates set — the full SOP launch section per deal.</div>';
+
   // Leak finder (last 30 days)
   var m30=daysAgo(29);
   var dl=sumFeed('dial',m30,t), cv=sumFeed('convo',m30,t), rc=sumReached(m30,t), sh=countRows(D.showings,'shown_on',m30,t), of=countRows(D.offers,'offered_on',m30,t);
@@ -598,8 +670,36 @@ function render(){
     '<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Assignments closed '+closed.length+' / '+at+'</div><div class="sbar" style="margin-bottom:10px"><i style="width:'+Math.min(100,Math.round(closed.length/at*100))+'%;background:var(--blue)"></i></div>'
     +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Revenue closed '+fmt$(rev)+' / '+fmt$(rt)+'</div><div class="sbar"><i style="width:'+Math.min(100,Math.round(rev/rt*100))+'%;background:var(--gold)"></i></div>';
 
-  // INSIGHTS
-  document.getElementById('insightStats').innerHTML=buildReport(true);
+  // INSIGHTS — weekly digest
+  var thisWk=kpiSet(daysAgo(6),t), lastWk=kpiSet(daysAgo(13),daysAgo(7));
+  var wh='<tr><th></th><th>This week</th><th>Last week</th><th>Δ</th></tr>';
+  for(var wi=0;wi<thisWk.length;wi++){
+    var a=thisWk[wi].v,b=lastWk[wi].v,dv=a-b;
+    wh+='<tr><td>'+thisWk[wi].n+'</td><td>'+a+'</td><td>'+b+'</td><td class="'+(dv>0?'ok-green':dv<0?'warn-red':'')+'">'+(dv>0?'▲ +':dv<0?'▼ ':'')+dv+'</td></tr>';
+  }
+  document.getElementById('wkTable').innerHTML=wh;
+
+  var aging=open.filter(function(d){
+    if(['Photos Received (Live)','Listed on MLS'].indexOf(d.stage)<0||!d.photos_on) return false;
+    return Math.floor((new Date(t)-new Date(d.photos_on))/86400000)>=10;
+  }).sort(function(a,b){return a.photos_on<b.photos_on?-1:1});
+  document.getElementById('aging').innerHTML=aging.length?
+    aging.map(function(d){
+      var dl2=Math.floor((new Date(t)-new Date(d.photos_on))/86400000);
+      var offs=D.offers.filter(function(o){return o.deal_id===d.id}).length;
+      return '<div onclick="openDeal(\''+d.id+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px">'
+        +'<span>'+dealLabel(d)+'</span><span style="color:'+(offs?'var(--mut)':'var(--red)')+';white-space:nowrap">'+dl2+'d live · '+offs+' offers</span></div>';
+    }).join('')+'<style>#aging > div:last-child{border-bottom:none}</style>':
+    '<div style="font-size:12px;color:var(--green)">Nothing aging — pipeline is moving. ✓</div>';
+
+  var pend=D.offers.filter(function(o){return o.status==='New'||o.status==='Countered'});
+  document.getElementById('pendOffers').innerHTML=pend.length?
+    pend.map(function(o){
+      var d2=D.deals.find(function(x){return x.id===o.deal_id});
+      return '<div '+(d2?'onclick="openDeal(\''+d2.id+'\')" style="cursor:pointer;':'style="')+'display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">'
+        +'<span>'+(d2?dealLabel(d2):'?')+' — '+esc(o.buyer||'buyer')+'</span><b>'+fmt$(o.amount)+' · '+esc(o.status)+'</b></div>';
+    }).join('')+'<style>#pendOffers > div:last-child{border-bottom:none}</style>':
+    '<div style="font-size:12px;color:var(--mut)">No offers awaiting a decision.</div>';
 
   // SETTINGS
   var ti=document.getElementById('targetInputs'); ti.innerHTML='';
@@ -626,7 +726,10 @@ function buildReport(html){
   kpiSet(w,t).forEach(function(k){ lines.push('  '+k.n+': '+k.v+' / '+(k.t*7)); });
   lines.push('');
   var dl=sumFeed('dial',m,t), cv=sumFeed('convo',m,t), rc=sumReached(m,t), sh=countRows(D.showings,'shown_on',m,t), of=countRows(D.offers,'offered_on',m,t);
-  lines.push('CONVERSION (30d): dials '+dl+', convos '+cv+', buyers reached '+rc+', showings '+sh+', offers '+of);
+  lines.push('CONVERSION (30d): dials '+dl+', convos '+cv+', buyers sent '+rc+', walkthroughs '+sh+', offers received '+of);
+  var lv=open.filter(function(d){return ['Photos Received (Live)','Listed on MLS','EMD In'].indexOf(d.stage)>=0});
+  var ld=0; lv.forEach(function(d){var tpl=sopTemplate(d),ck=SOP[d.id]||{};var sec=tpl.find(function(s){return s.sec.indexOf('Dispo Launch')>=0||s.sec.indexOf('Agent Photos')>=0});if(sec&&sec.items.every(function(it){return ck[it[0]]}))ld++;});
+  lines.push('SOP DISCIPLINE: '+ld+'/'+lv.length+' live deals fully launched');
   if(html) return '<pre style="white-space:pre-wrap;font-size:11px;color:var(--mut);font-family:inherit">'+esc(lines.join('\n'))+'</pre>';
   return lines.join('\n');
 }
@@ -670,6 +773,14 @@ function openLog(kind,dealId){
     +'<label>Buyer</label><input id="lo_buyer" placeholder="Buyer name">'
     +'<label>Amount</label><input type="number" id="lo_amt" placeholder="192000">'
     +'<button class="btn p big" onclick="saveOffer()">Save offer received</button>';
+  } else if(kind==='feedback'){
+    h='<h2>Log buyer feedback</h2>'
+    +'<label>Deal</label><select id="lf_deal">'+dealOptions(dealId)+'</select>'
+    +'<label>Buyer</label><input id="lf_buyer" placeholder="Buyer name">'
+    +'<div class="half"><div><label>Temperature</label><select id="lf_temp"><option>Hot</option><option>Warm</option><option>Cold</option><option>Pass</option></select></div>'
+    +'<div><label>Would pay ($)</label><input type="number" id="lf_pay" placeholder="optional"></div></div>'
+    +'<label>Notes / objection</label><textarea id="lf_notes" rows="2" placeholder="ARV feels high, needs roof..."></textarea>'
+    +'<button class="btn p big" onclick="saveFeedback()">Save feedback</button>';
   } else if(kind==='drop'){
     var d=D.deals.find(function(x){return x.id===dealId});
     h='<h2>Price drop</h2>'
@@ -702,6 +813,12 @@ async function saveShowing(){
 }
 async function saveOffer(){
   var r=await db.from('offers').insert({deal_id:document.getElementById('lo_deal').value,offered_on:today(),buyer:document.getElementById('lo_buyer').value,amount:Number(document.getElementById('lo_amt').value)||0,status:'New'});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveFeedback(){
+  var r=await db.from('feedback').insert({deal_id:document.getElementById('lf_deal').value,fb_on:today(),
+    buyer:document.getElementById('lf_buyer').value,temperature:document.getElementById('lf_temp').value,
+    would_pay:Number(document.getElementById('lf_pay').value)||null,notes:document.getElementById('lf_notes').value});
   if(r.error)return alert(r.error.message); closeModal(); loadAll();
 }
 async function saveDrop(){
@@ -760,7 +877,8 @@ function openDeal(id){
     D.sends.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.sent_on,t:'📤 Sent to '+(x.buyers_reached||0)+' buyers ('+x.channel+')'+(x.list_name?' — '+esc(x.list_name):'')}}),
     D.showings.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.shown_on,t:'🚪 Showing — '+esc(x.buyer||'')+' ('+esc(x.outcome||'')+')'}}),
     D.offers.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.offered_on,t:'💰 Offer '+fmt$(x.amount)+' — '+esc(x.buyer||'')+' ['+esc(x.status)+']'}}),
-    D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}})
+    D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}}),
+    D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
@@ -770,6 +888,7 @@ function openDeal(id){
   +'<button onclick="closeModal();openLog(\'showing\',\''+id+'\')">+ Walkthrough</button>'
   +'<button onclick="closeModal();openLog(\'offer\',\''+id+'\')">+ Offer</button>'
   +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
+  +'<button onclick="closeModal();openLog(\'feedback\',\''+id+'\')">💬 Feedback</button>'
   +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Edit</button></div>'
   +(function(){
     var tpl=sopTemplate(d), checks=SOP[d.id]||{}, pr=sopProgress(d);
