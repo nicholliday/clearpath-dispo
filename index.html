@@ -170,6 +170,15 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Offers pending a decision</div>
     <div class="card" id="pendOffers"></div>
 
+    <div class="sec">Needs your input <small>— keeps the data honest</small></div>
+    <div class="card" id="hygiene"></div>
+
+    <div class="sec">Fall-through reasons <small>(all time)</small></div>
+    <div class="card" id="autopsyStats"></div>
+
+    <div class="sec">Fee accuracy <small>— projected vs actual at close</small></div>
+    <div class="card" id="feeAcc"></div>
+
     <div class="sec">Send to Claude</div>
     <button class="btn g big" onclick="copyReport()">Copy full report for Claude</button>
     <p style="font-size:11px;color:var(--mut);margin-top:8px">Paste into a Claude chat: "Analyze my dispo operation — nurture discipline, rep vs targets, velocity, leaks, and what to fix next week."</p>
@@ -725,6 +734,50 @@ function render(){
     }).join('')+'<style>#aging > div:last-child{border-bottom:none}</style>':
     '<div style="font-size:12px;color:var(--green)">Nothing aging — pipeline is moving. ✓</div>';
 
+  // Data hygiene prompts
+  var deadNoReason=D.deals.filter(function(d){return d.stage.indexOf('Ghosted')>=0&&!d.death_reason});
+  var closedNoFee=D.deals.filter(function(d){return d.stage==='Closed'&&!d.revenue_closed});
+  var hyg='';
+  deadNoReason.forEach(function(d){
+    hyg+='<div onclick="openLog(\'autopsy\',\''+d.id+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px"><span>💀 '+dealLabel(d)+'</span><span style="color:var(--amber)">why did it die? →</span></div>';
+  });
+  closedNoFee.forEach(function(d){
+    hyg+='<div onclick="openLog(\'actualfee\',\''+d.id+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px"><span>💰 '+dealLabel(d)+'</span><span style="color:var(--amber)">actual fee? →</span></div>';
+  });
+  document.getElementById('hygiene').innerHTML=hyg?hyg+'<style>#hygiene > div:last-child{border-bottom:none}</style>':'<div style="font-size:12px;color:var(--green)">All dead deals autopsied, all closes have actual fees. ✓</div>';
+
+  var reasons={};
+  D.deals.forEach(function(d){ if(d.death_reason){ reasons[d.death_reason]=(reasons[d.death_reason]||0)+1; } });
+  var rKeys=Object.keys(reasons).sort(function(a,b){return reasons[b]-reasons[a]});
+  var totalDead=rKeys.reduce(function(a,k){return a+reasons[k]},0);
+  document.getElementById('autopsyStats').innerHTML=rKeys.length?
+    rKeys.map(function(k){
+      var pct=Math.round(reasons[k]/totalDead*100);
+      return '<div class="scoreline"><span class="lbl" style="width:180px">'+esc(k)+'</span><div class="sbar"><i style="width:'+pct+'%;background:var(--red)"></i></div><span class="num">'+reasons[k]+' ('+pct+'%)</span></div>';
+    }).join(''):
+    '<div style="font-size:12px;color:var(--mut)">No autopsies yet — when a deal ghosts, tag the reason above and patterns build here.</div>';
+
+  var fa=D.deals.filter(function(d){return d.stage==='Closed'&&d.revenue_closed&&d.fee_target});
+  if(fa.length){
+    var sumP=fa.reduce(function(a,d){return a+Number(d.fee_target)},0);
+    var sumA=fa.reduce(function(a,d){return a+Number(d.revenue_closed)},0);
+    var accPct=Math.round(sumA/sumP*100);
+    var fh='<div class="row" style="font-size:12px;margin-bottom:8px"><span style="color:var(--mut)">Overall: actual vs projected</span><b style="color:'+(accPct>=95?'var(--green)':accPct>=80?'var(--amber)':'var(--red)')+'">'+fmt$(sumA)+' / '+fmt$(sumP)+' ('+accPct+'%)</b></div>';
+    ['Cash','Novation','Double Close'].forEach(function(tp){
+      var g=fa.filter(function(d){return (d.deal_type||'Cash')===tp});
+      if(!g.length) return;
+      var p2=g.reduce(function(a,d){return a+Number(d.fee_target)},0), a2=g.reduce(function(a,d){return a+Number(d.revenue_closed)},0);
+      fh+='<div class="row" style="font-size:11px;margin-bottom:5px"><span style="color:var(--mut)">'+tp+' ('+g.length+')</span><span>'+fmt$(a2)+' / '+fmt$(p2)+' ('+Math.round(a2/p2*100)+'%)</span></div>';
+    });
+    fh+=fa.map(function(d){
+      var delta=Number(d.revenue_closed)-Number(d.fee_target);
+      return '<div class="row" style="font-size:11px;padding:5px 0;border-top:1px solid var(--line)"><span>'+dealLabel(d)+'</span><span style="color:'+(delta>=0?'var(--green)':'var(--red)')+'">'+fmt$(d.revenue_closed)+' vs '+fmt$(d.fee_target)+'</span></div>';
+    }).join('');
+    document.getElementById('feeAcc').innerHTML=fh;
+  } else {
+    document.getElementById('feeAcc').innerHTML='<div style="font-size:12px;color:var(--mut)">Builds as deals close with actual fees entered (prompts appear above when a deal closes).</div>';
+  }
+
   var pend=D.offers.filter(function(o){return o.status==='New'||o.status==='Countered'});
   document.getElementById('pendOffers').innerHTML=pend.length?
     pend.map(function(o){
@@ -814,6 +867,21 @@ function openLog(kind,dealId){
     +'<div><label>Would pay ($)</label><input type="number" id="lf_pay" placeholder="optional"></div></div>'
     +'<label>Notes / objection</label><textarea id="lf_notes" rows="2" placeholder="ARV feels high, needs roof..."></textarea>'
     +'<button class="btn p big" onclick="saveFeedback()">Save feedback</button>';
+  } else if(kind==='autopsy'){
+    var dd=D.deals.find(function(x){return x.id===dealId});
+    h='<h2>Fall-through autopsy</h2>'
+    +'<p style="font-size:12px;color:var(--mut);margin-bottom:10px">'+dealLabel(dd)+' — why did this deal die?</p>'
+    +'<label>Reason</label><select id="la_reason">'
+    +['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Other'].map(function(o){return '<option'+(dd.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')
+    +'</select>'
+    +'<label>Notes (optional)</label><textarea id="la_notes" rows="2">'+esc(dd.death_notes||'')+'</textarea>'
+    +'<button class="btn p big" onclick="saveAutopsy(\''+dealId+'\')">Save autopsy</button>';
+  } else if(kind==='actualfee'){
+    var df=D.deals.find(function(x){return x.id===dealId});
+    h='<h2>Actual fee at close</h2>'
+    +'<p style="font-size:12px;color:var(--mut);margin-bottom:10px">'+dealLabel(df)+' — projected was '+fmt$(df.fee_target)+'</p>'
+    +'<label>Actual revenue closed ($)</label><input type="number" id="la_fee" value="'+(df.revenue_closed||'')+'">'
+    +'<button class="btn p big" onclick="saveActualFee(\''+dealId+'\')">Save</button>';
   } else if(kind==='drop'){
     var d=D.deals.find(function(x){return x.id===dealId});
     h='<h2>Price drop</h2>'
@@ -846,6 +914,14 @@ async function saveShowing(){
 }
 async function saveOffer(){
   var r=await db.from('offers').insert({deal_id:document.getElementById('lo_deal').value,offered_on:today(),buyer:document.getElementById('lo_buyer').value,amount:Number(document.getElementById('lo_amt').value)||0,status:'New'});
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveAutopsy(id){
+  var r=await db.from('deals').update({death_reason:document.getElementById('la_reason').value,death_notes:document.getElementById('la_notes').value}).eq('id',id);
+  if(r.error)return alert(r.error.message); closeModal(); loadAll();
+}
+async function saveActualFee(id){
+  var r=await db.from('deals').update({revenue_closed:Number(document.getElementById('la_fee').value)||null}).eq('id',id);
   if(r.error)return alert(r.error.message); closeModal(); loadAll();
 }
 async function saveFeedback(){
@@ -914,6 +990,7 @@ function openDeal(id){
     D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
+  +(d.death_reason?'<div style="font-size:11px;color:var(--red);margin-bottom:8px">💀 '+esc(d.death_reason)+(d.death_notes?' — '+esc(d.death_notes):'')+' <button class="act" onclick="closeModal();openLog(\'autopsy\',\''+d.id+'\')">edit</button></div>':'')
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
   +'<div class="qbtns" style="margin-bottom:14px">'
