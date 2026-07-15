@@ -205,7 +205,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
   <button data-v="owner" onclick="nav('owner')"><span class="ic">📊</span>Operator</button>
   <button data-v="reps" onclick="nav('reps')"><span class="ic">👤</span>Reps</button>
   <button data-v="insights" onclick="nav('insights')"><span class="ic">🤖</span>Insights</button>
-  <button data-v="settings" onclick="nav('settings')"><span class="ic">⚙️</span>Settings</button>
+  <button data-v="settings" onclick="nav('settings')"><span class="ic">⚙️</span>Inputs/Outputs</button>
 </div>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -241,7 +241,7 @@ function nav(v){
   document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});
   document.getElementById('v-'+v).classList.add('on');
   document.querySelectorAll('.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
-  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Operator View',reps:'Rep Performance',insights:'AI Insights',settings:'Settings'}[v];
+  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Operator View',reps:'Rep Performance',insights:'AI Insights',settings:'Inputs / Outputs'}[v];
   render();
 }
 
@@ -462,6 +462,11 @@ async function planNote(dealId, val){
   var open=D.deals.filter(function(d){return DEAD.indexOf(d.stage)<0});
   var done=open.filter(function(d){return PLAN[d.id]&&PLAN[d.id].done}).length;
   document.getElementById('planProg').textContent=open.length?done+' / '+open.length+' done':'';
+}
+function workDays(from, to){
+  var c=0, d=new Date(from+'T12:00:00'), end=new Date(to+'T12:00:00');
+  while(d<=end){ if(d.getDay()!==0) c++; d.setDate(d.getDate()+1); }
+  return c;
 }
 function histDateG(dealId, stage){
   var rows=(D.hist||[]).filter(function(h){return h.deal_id===dealId&&h.stage===stage}).sort(function(a,b){return a.entered_on<b.entered_on?-1:1});
@@ -715,11 +720,11 @@ function render(){
   var yS=now2.getFullYear()+'-01-01';
   document.getElementById('repRangeNote').textContent=now2.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   var periods=[
-    {n:'Today',from:t,days:1},
-    {n:'Week',from:daysAgo(6),days:7},
-    {n:'Month',from:mS,days:now2.getDate()},
-    {n:'Quarter',from:qS,days:Math.floor((now2-new Date(qS))/86400000)+1},
-    {n:'Year',from:yS,days:Math.floor((now2-new Date(yS))/86400000)+1}
+    {n:'Today',from:t,days:workDays(t,t)},
+    {n:'Week',from:daysAgo(6),days:workDays(daysAgo(6),t)},
+    {n:'Month',from:mS,days:workDays(mS,t)},
+    {n:'Quarter',from:qS,days:workDays(qS,t)},
+    {n:'Year',from:yS,days:workDays(yS,t)}
   ];
   var sets=periods.map(function(p){return kpiSet(p.from,t)});
   var rb='<tr><th></th>'+periods.map(function(p){return '<th>'+p.n+'</th>'}).join('')+'</tr>';
