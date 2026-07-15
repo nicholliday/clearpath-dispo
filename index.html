@@ -149,7 +149,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Deal velocity <small>(builds as deals move stages)</small></div>
     <div class="card" id="velocity"></div>
 
-    <div class="sec">SOP discipline</div>
+    <div class="sec">SOP pacing <small>— is every deal where it should be?</small></div>
     <div class="card" id="discipline"></div>
 
     <div class="sec">Leak finder <small>(last 30 days)</small></div>
@@ -264,13 +264,16 @@ var SOP_CASH=[
  {sec:'1. Contract Received',items:[
   ['wb','Whiteboard filled (address, seller, prices, source, cash/novation)'],
   ['notes','Closer notes read in CRM'],
-  ['acq','Spoke with acquisition rep about seller']]},
- {sec:'2. Photo Collection',items:[
+  ['acq','Spoke with acquisition rep about seller'],
   ['welcome','Welcome email sent (photo request)'],
-  ['wcall','Seller called right after email']]},
+  ['wcall','Seller called right after email'],
+  ['photoreach','Photos scheduled with seller']]},
+ {sec:'2. Photo Collection',items:[
+  ['chase','Daily chase run until photos in (calls + texts per SOP cadence)'],
+  ['photosin','Photos received & saved']]},
  {sec:'3. Dispo Launch',items:[
   ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
-  ['prec','"Photos Received" email sent to seller w/ dates'],
+  ['prec','Photos received email with only closing day sent'],
   ['listing','Deal listing created'],
   ['blast','Blast sent to buyer list'],
   ['futask','Next-day buyer follow-up tasks set'],
@@ -299,14 +302,15 @@ var SOP_NOVATION=[
  {sec:'1. Contract Received',items:[
   ['wb','Whiteboard filled (address, seller, prices, source, cash/novation)'],
   ['notes','Closer notes read in CRM'],
-  ['acq','Spoke with acquisition rep about seller']]},
+  ['acq','Spoke with acquisition rep about seller'],
+  ['welcome','Welcome email sent (NO photo request — visit requested)'],
+  ['photoreach','Photos scheduled with agent and seller']]},
  {sec:'2. Agent Photos & Setup',items:[
-  ['welcome','Welcome email sent (NO photo request — visit scheduled)'],
-  ['visit','Agent photo visit scheduled ("we are coming by")'],
   ['access','Access handled (lockbox if vacant / seller or tenant coordinated)'],
-  ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
-  ['prec','"Photos Received" email sent to seller w/ dates']]},
+  ['photosin','Agent photos completed']]},
  {sec:'3. Agent-Led Dispo',items:[
+  ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
+  ['prec','Photos received email with only closing day sent'],
   ['walkco','Walkthroughs coordinated with seller/tenant (24hr notices)'],
   ['offercom','Offer updates flowing from agent'],
   ['psa','PSA sent to seller on best offer ("closing document to authorize")']]},
@@ -443,7 +447,33 @@ async function planNote(dealId, val){
   var done=open.filter(function(d){return PLAN[d.id]&&PLAN[d.id].done}).length;
   document.getElementById('planProg').textContent=open.length?done+' / '+open.length+' done':'';
 }
+function pacing(d){
+  var t=today();
+    var tpl=sopTemplate(d), checks=SOP[d.id]||{};
+    var ageDays=Math.floor((new Date(today())-new Date((d.created_at||'').slice(0,10)||t))/86400000);
+    var liveDays=d.photos_on?Math.floor((new Date(today())-new Date(d.photos_on))/86400000):null;
+    var missing=[];
+    if(d.stage==='Waiting On Photos' && ageDays>=4){
+      missing.push('Photos overdue — day '+ageDays+' without photos (escalate chase per SOP)');
+    }
+    tpl.forEach(function(s,idx){
+      var due=false;
+      if(idx===0) due=true;                                        // contract received: day 0
+      else if(idx===1) due=true;                                    // photo collection / agent setup: same day as contract
+      else if(s.sec.indexOf('Dispo Launch')>=0||s.sec.indexOf('Agent-Led')>=0) due=(liveDays!=null&&liveDays>=2);   // done day-of or day-after photos; flags day 2
+      else if(s.sec.indexOf('Buyer Outreach')>=0) due=(liveDays!=null&&liveDays>=3);
+      else due=(d.stage==='EMD In');                               // offer/assignment + closing discipline
+      if(!due) return;
+      s.items.forEach(function(it){ if(!checks[it[0]]) missing.push(it[1]); });
+    });
+    return missing;
+  }
 function priceDropAlert(d){
+  if(d.stage==='Waiting On Photos'){
+    var age=Math.floor((new Date(today())-new Date((d.created_at||'').slice(0,10)||today()))/86400000);
+    if(age>=4) return '<div style="margin-top:6px;font-size:11px;font-weight:700;color:'+(age>=5?'var(--red)':'var(--amber)')+'">📸 Day '+age+' without photos — escalate chase (double/triple calls per SOP)</div>';
+    return '';
+  }
   if(['Photos Received (Live)','Listed on MLS'].indexOf(d.stage)<0) return '';
   if(!d.photos_on) return '';
   var offers=D.offers.filter(function(o){return o.deal_id===d.id}).length;
@@ -640,21 +670,24 @@ function render(){
     +vRow('Live → first offer',avgDays(vOffer),vOffer.length)
     +vRow('EMD in → closed',avgDays(vClose),vClose.length);
 
-  // SOP discipline: % of live deals with launch section fully checked
-  var liveDeals=open.filter(function(d){return ['Photos Received (Live)','Listed on MLS','EMD In'].indexOf(d.stage)>=0});
-  var launched=0;
-  liveDeals.forEach(function(d){
-    var tpl=sopTemplate(d), checks=SOP[d.id]||{};
-    var sec=tpl.find(function(s){return s.sec.indexOf('Dispo Launch')>=0||s.sec.indexOf('Agent Photos')>=0});
-    if(sec&&sec.items.every(function(it){return checks[it[0]]})) launched++;
+  // SOP pacing: which sections are DUE for each deal given its age/stage, and are they done?
+  var paceable=open.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  var behind=[], onPace=0;
+  paceable.forEach(function(d){
+    var m=pacing(d);
+    if(m.length) behind.push({d:d,n:m.length}); else onPace++;
   });
-  var discPct=liveDeals.length?Math.round(launched/liveDeals.length*100):null;
-  document.getElementById('discipline').innerHTML=discPct==null?
-    '<div style="font-size:12px;color:var(--mut)">No live deals right now.</div>':
-    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Live deals with launch checklist complete</span><b style="color:'+(discPct>=80?'var(--green)':discPct>=50?'var(--amber)':'var(--red)')+'">'+launched+' / '+liveDeals.length+' ('+discPct+'%)</b></div>'
-    +'<div style="font-size:11px;color:var(--mut)">Launch = comps pulled, blast sent, FB posted, dates set — the full SOP launch section per deal.</div>';
+  behind.sort(function(a,b){return b.n-a.n});
+  var pacePct=paceable.length?Math.round(onPace/paceable.length*100):null;
+  document.getElementById('discipline').innerHTML=(pacePct==null?
+    '<div style="font-size:12px;color:var(--mut)">No open deals.</div>':
+    '<div class="row" style="font-size:12px;margin-bottom:8px"><span style="color:var(--mut)">Deals on pace with the SOP</span><b style="color:'+(pacePct>=80?'var(--green)':pacePct>=50?'var(--amber)':'var(--red)')+'">'+onPace+' / '+paceable.length+' ('+pacePct+'%)</b></div>'
+    +(behind.length?behind.map(function(x){
+        return '<div onclick="openDeal(\''+x.d.id+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer;font-size:12px">'
+          +'<span>'+dealLabel(x.d)+'</span><span style="color:var(--red);white-space:nowrap">'+x.n+' items behind</span></div>';
+      }).join(''):'<div style="font-size:12px;color:var(--green)">Every deal is pacing. ✓</div>'));
 
-  // Leak finder (last 30 days)
+  // Leak finder (last 30 days)  // Leak finder (last 30 days)
   var m30=daysAgo(29);
   var dl=sumFeed('dial',m30,t), cv=sumFeed('convo',m30,t), rc=sumReached(m30,t), sh=countRows(D.showings,'shown_on',m30,t), of=countRows(D.offers,'offered_on',m30,t);
   document.getElementById('leaks').innerHTML=
@@ -727,9 +760,9 @@ function buildReport(html){
   lines.push('');
   var dl=sumFeed('dial',m,t), cv=sumFeed('convo',m,t), rc=sumReached(m,t), sh=countRows(D.showings,'shown_on',m,t), of=countRows(D.offers,'offered_on',m,t);
   lines.push('CONVERSION (30d): dials '+dl+', convos '+cv+', buyers sent '+rc+', walkthroughs '+sh+', offers received '+of);
-  var lv=open.filter(function(d){return ['Photos Received (Live)','Listed on MLS','EMD In'].indexOf(d.stage)>=0});
-  var ld=0; lv.forEach(function(d){var tpl=sopTemplate(d),ck=SOP[d.id]||{};var sec=tpl.find(function(s){return s.sec.indexOf('Dispo Launch')>=0||s.sec.indexOf('Agent Photos')>=0});if(sec&&sec.items.every(function(it){return ck[it[0]]}))ld++;});
-  lines.push('SOP DISCIPLINE: '+ld+'/'+lv.length+' live deals fully launched');
+  var pcAll=open.filter(function(d){return DEAD.indexOf(d.stage)<0});
+  var pcOn=0; pcAll.forEach(function(d){ if(!pacing(d).length) pcOn++; });
+  lines.push('SOP PACING: '+pcOn+'/'+pcAll.length+' deals on pace for their age/stage');
   if(html) return '<pre style="white-space:pre-wrap;font-size:11px;color:var(--mut);font-family:inherit">'+esc(lines.join('\n'))+'</pre>';
   return lines.join('\n');
 }
