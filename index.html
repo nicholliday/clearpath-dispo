@@ -740,16 +740,19 @@ function render(){
     });
   }
   var aTm=D.targets.assigned_monthly||10, rTm=D.targets.revenue_monthly||100000;
+  var moneyT={'Today':null,'Week':0.25,'Month':1,'Quarter':3,'Year':12};   // fraction/multiple of monthly
   rb+='<tr><td>Assignments Closed</td>';
   periods.forEach(function(p){
-    var c=closedIn(p.from).length, tg=Math.max(1,Math.round(aTm*p.days/30));
-    rb+='<td class="'+(c>=tg?'ok-green':'')+'">'+c+'<span style="color:var(--mut)">/'+tg+'</span></td>';
+    var c=closedIn(p.from).length, mult=moneyT[p.n];
+    var tg=mult==null?null:(aTm*mult);
+    rb+='<td class="'+(tg!=null&&c>=tg?'ok-green':'')+'">'+c+(tg!=null?'<span style="color:var(--mut)">/'+tg+'</span>':'')+'</td>';
   });
   rb+='</tr><tr><td>Revenue Closed</td>';
   periods.forEach(function(p){
     var rev=closedIn(p.from).reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
-    var tg=Math.round(rTm*p.days/30);
-    rb+='<td class="'+(rev>=tg?'ok-green':'')+'">'+fmt$(rev)+'<span style="color:var(--mut)">/'+fmt$(tg)+'</span></td>';
+    var mult=moneyT[p.n];
+    var tg=mult==null?null:Math.round(rTm*mult);
+    rb+='<td class="'+(tg!=null&&rev>=tg?'ok-green':'')+'">'+fmt$(rev)+(tg!=null?'<span style="color:var(--mut)">/'+fmt$(tg)+'</span>':'')+'</td>';
   });
   rb+='</tr>';
   document.getElementById('repBigTable').innerHTML=rb;
