@@ -161,9 +161,6 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec" style="margin-top:0">KPIs vs target — <span id="repRangeNote"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="repBigTable"></table></div>
 
-    <div class="sec">Perfect days <small>— all 6 targets hit</small></div>
-    <div class="card" id="perfectDays"></div>
-
     <div class="sec">Overall attainment</div>
     <div class="card" id="attainment"></div>
   </div>
@@ -466,6 +463,10 @@ async function planNote(dealId, val){
   var done=open.filter(function(d){return PLAN[d.id]&&PLAN[d.id].done}).length;
   document.getElementById('planProg').textContent=open.length?done+' / '+open.length+' done':'';
 }
+function histDateG(dealId, stage){
+  var rows=(D.hist||[]).filter(function(h){return h.deal_id===dealId&&h.stage===stage}).sort(function(a,b){return a.entered_on<b.entered_on?-1:1});
+  return rows.length?rows[0].entered_on:null;
+}
 function pacing(d){
   var t=today();
     var tpl=sopTemplate(d), checks=SOP[d.id]||{};
@@ -730,18 +731,28 @@ function render(){
     }
     rb+='</tr>';
   }
-  document.getElementById('repBigTable').innerHTML=rb;
-
-  // Perfect days this month
-  var pd=0, dayCount=now2.getDate();
-  for(var dd=1;dd<=dayCount;dd++){
-    var ds=t.slice(0,8)+String(dd).padStart(2,'0');
-    var k6=kpiSet(ds,ds), all=true;
-    for(var ki=0;ki<k6.length;ki++){ if(k6[ki].v<k6[ki].t){all=false;break;} }
-    if(all) pd++;
+  // Assignments closed + revenue rows (targets prorated from monthly)
+  function closedIn(from){
+    return D.deals.filter(function(d){
+      if(d.stage!=='Closed') return false;
+      var cd=histDateG(d.id,'Closed')||d.closing_deadline||null;
+      return cd && cd>=from && cd<=t;
+    });
   }
-  document.getElementById('perfectDays').innerHTML=
-    '<div class="row" style="font-size:12px"><span style="color:var(--mut)">Perfect days this month</span><b style="color:'+(pd>0?'var(--green)':'var(--mut)')+'">'+pd+' / '+dayCount+'</b></div>';
+  var aTm=D.targets.assigned_monthly||10, rTm=D.targets.revenue_monthly||100000;
+  rb+='<tr><td>Assignments Closed</td>';
+  periods.forEach(function(p){
+    var c=closedIn(p.from).length, tg=Math.max(1,Math.round(aTm*p.days/30));
+    rb+='<td class="'+(c>=tg?'ok-green':'')+'">'+c+'<span style="color:var(--mut)">/'+tg+'</span></td>';
+  });
+  rb+='</tr><tr><td>Revenue Closed</td>';
+  periods.forEach(function(p){
+    var rev=closedIn(p.from).reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+    var tg=Math.round(rTm*p.days/30);
+    rb+='<td class="'+(rev>=tg?'ok-green':'')+'">'+fmt$(rev)+'<span style="color:var(--mut)">/'+fmt$(tg)+'</span></td>';
+  });
+  rb+='</tr>';
+  document.getElementById('repBigTable').innerHTML=rb;
 
   // Overall attainment (month): avg of each KPI attainment %
   var mSet=sets[2], mDays=periods[2].days, attSum=0;
