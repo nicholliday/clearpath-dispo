@@ -161,8 +161,11 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec" style="margin-top:0">KPIs vs target — <span id="repRangeNote"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="repBigTable"></table></div>
 
-    <div class="sec">Overall attainment</div>
+    <div class="sec">Monthly attainment</div>
     <div class="card" id="attainment"></div>
+
+    <div class="sec">Revenue thermometer <small>— goal $100K/month</small></div>
+    <div class="card" id="thermo"></div>
   </div>
 
   <!-- INSIGHTS -->
@@ -727,16 +730,6 @@ function render(){
     {n:'Year',from:yS,days:workDays(yS,t)}
   ];
   var sets=periods.map(function(p){return kpiSet(p.from,t)});
-  var rb='<tr><th></th>'+periods.map(function(p){return '<th>'+p.n+'</th>'}).join('')+'</tr>';
-  for(var ri=0;ri<sets[0].length;ri++){
-    rb+='<tr><td>'+sets[0][ri].n+'</td>';
-    for(var pi=0;pi<periods.length;pi++){
-      var kv=sets[pi][ri], tgt=kv.t*periods[pi].days;
-      rb+='<td class="'+(kv.v>=tgt?'ok-green':'')+'">'+kv.v.toLocaleString()+'<span style="color:var(--mut)">/'+tgt.toLocaleString()+'</span></td>';
-    }
-    rb+='</tr>';
-  }
-  // Assignments closed + revenue rows (targets prorated from monthly)
   function closedIn(from){
     return D.deals.filter(function(d){
       if(d.stage!=='Closed') return false;
@@ -745,32 +738,80 @@ function render(){
     });
   }
   var aTm=D.targets.assigned_monthly||10, rTm=D.targets.revenue_monthly||100000;
-  var moneyT={'Today':null,'Week':0.25,'Month':1,'Quarter':3,'Year':12};   // fraction/multiple of monthly
-  rb+='<tr><td>Assignments Closed</td>';
-  periods.forEach(function(p){
-    var c=closedIn(p.from).length, mult=moneyT[p.n];
-    var tg=mult==null?null:(aTm*mult);
-    rb+='<td class="'+(tg!=null&&c>=tg?'ok-green':'')+'">'+c+(tg!=null?'<span style="color:var(--mut)">/'+tg+'</span>':'')+'</td>';
+  var moneyT={'Today':null,'Week':0.25,'Month':1,'Quarter':3,'Year':12};
+  var kpiNames=sets[0].map(function(k){return k.n});
+  var rb='<tr><th></th>'+kpiNames.map(function(n){return '<th>'+n+'</th>'}).join('')+'<th>Assignments</th><th>Revenue</th></tr>';
+  periods.forEach(function(p,pi){
+    rb+='<tr><td style="font-weight:700">'+p.n+'</td>';
+    sets[pi].forEach(function(kv){
+      var tgt=kv.t*p.days;
+      rb+='<td class="'+(tgt>0&&kv.v>=tgt?'ok-green':'')+'">'+kv.v.toLocaleString()+'<span style="color:var(--mut)">/'+tgt.toLocaleString()+'</span></td>';
+    });
+    var closed=closedIn(p.from), mult=moneyT[p.n];
+    var aT=mult==null?null:(aTm*mult);
+    rb+='<td class="'+(aT!=null&&closed.length>=aT?'ok-green':'')+'">'+closed.length+(aT!=null?'<span style="color:var(--mut)">/'+aT+'</span>':'')+'</td>';
+    var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+    var rT=mult==null?null:Math.round(rTm*mult);
+    rb+='<td class="'+(rT!=null&&rev>=rT?'ok-green':'')+'">'+fmt$(rev)+(rT!=null?'<span style="color:var(--mut)">/'+fmt$(rT)+'</span>':'')+'</td></tr>';
   });
-  rb+='</tr><tr><td>Revenue Closed</td>';
-  periods.forEach(function(p){
-    var rev=closedIn(p.from).reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
-    var mult=moneyT[p.n];
-    var tg=mult==null?null:Math.round(rTm*mult);
-    rb+='<td class="'+(tg!=null&&rev>=tg?'ok-green':'')+'">'+fmt$(rev)+(tg!=null?'<span style="color:var(--mut)">/'+fmt$(tg)+'</span>':'')+'</td>';
-  });
-  rb+='</tr>';
   document.getElementById('repBigTable').innerHTML=rb;
 
-  // Overall attainment (month): avg of each KPI attainment %
+  // Monthly attainment: KPI % and Revenue %
   var mSet=sets[2], mDays=periods[2].days, attSum=0;
   mSet.forEach(function(k){ attSum+=Math.min(100,(k.v/(k.t*mDays))*100); });
-  var att=Math.round(attSum/mSet.length);
+  var kpiAtt=Math.round(attSum/mSet.length);
+  var mClosed=closedIn(mS);
+  var mRev=mClosed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+  var revAtt=Math.min(100,Math.round(mRev/rTm*100));
+  function attRow(label,pct,detail){
+    var col=pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+    return '<div class="row" style="font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">'+label+'</span><b style="color:'+col+'">'+pct+'%'+(detail?' <span style="font-weight:400;color:var(--mut);font-size:10px">'+detail+'</span>':'')+'</b></div>'
+      +'<div class="sbar" style="margin-bottom:12px"><i style="width:'+pct+'%;background:'+col+'"></i></div>';
+  }
   document.getElementById('attainment').innerHTML=
-    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Month-to-date attainment (avg across all 6 KPIs)</span><b style="color:'+(att>=90?'var(--green)':att>=70?'var(--amber)':'var(--red)')+'">'+att+'%</b></div>'
-    +'<div class="sbar"><i style="width:'+att+'%;background:'+(att>=90?'var(--green)':att>=70?'var(--blue)':'var(--red)')+'"></i></div>';
+    attRow('KPI attainment — month to date (avg of 6 activity KPIs)',kpiAtt,'')
+    +attRow('Revenue attainment — month to date',revAtt,fmt$(mRev)+' of '+fmt$(rTm));
 
-  // INSIGHTS — weekly digest
+  // Revenue thermometers: closed vs pipeline, $0-$200K scale
+  (function(){
+    var maxV=200000, goal=D.targets.revenue_monthly||100000;
+    var pipeRev=open.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
+    function tube(label,val,color){
+      var pct=Math.min(100,val/maxV*100);
+      var h='<div style="display:flex;flex-direction:column;align-items:center;flex:1">';
+      h+='<div style="font-size:14px;font-weight:700;margin-bottom:2px">'+fmt$(val)+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut);margin-bottom:6px">'+label+'</div>';
+      h+='<div style="position:relative;width:44px;height:260px;background:var(--card2);border:1px solid var(--line);border-radius:22px;overflow:hidden">';
+      // tick marks every 10K, bolder every 50K
+      for(var v=10000;v<maxV;v+=10000){
+        var bot=(v/maxV*100);
+        h+='<div style="position:absolute;left:0;right:'+(v%50000===0?'0':'55%')+';bottom:'+bot+'%;height:1px;background:'+(v%50000===0?'#3A4A6B':'#26334D')+'"></div>';
+      }
+      // goal line
+      var gb=(goal/maxV*100);
+      h+='<div style="position:absolute;left:-2px;right:-2px;bottom:'+gb+'%;height:3px;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>';
+      // mercury
+      h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px;transition:height 0.6s"></div>';
+      h+='</div>';
+      h+='<div style="font-size:9px;color:var(--gold);font-weight:700;margin-top:5px">GOAL '+fmt$(goal)+'</div>';
+      h+='</div>';
+      return h;
+    }
+    // scale labels column
+    var labels='<div style="display:flex;flex-direction:column-reverse;justify-content:space-between;height:260px;margin-top:44px;padding-bottom:0">';
+    for(var lv=0;lv<=maxV;lv+=50000){ labels+='<div style="font-size:9px;color:var(--mut)">$'+(lv/1000)+'K</div>'; }
+    labels+='</div>';
+    var mClosed2=closedIn(mS);
+    var mRev2=mClosed2.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+    document.getElementById('thermo').innerHTML=
+      '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:center">'
+      +labels
+      +tube('Closed this month',mRev2,'#10B981')
+      +tube('Pipeline (open fee $)',pipeRev,'#3B82F6')
+      +'</div>';
+  })();
+
+  // INSIGHTS — weekly digest  // INSIGHTS — weekly digest
   var thisWk=kpiSet(daysAgo(6),t), lastWk=kpiSet(daysAgo(13),daysAgo(7));
   var wh='<tr><th></th><th>This week</th><th>Last week</th><th>Δ</th></tr>';
   for(var wi=0;wi<thisWk.length;wi++){
