@@ -161,10 +161,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec" style="margin-top:0">KPIs vs target — <span id="repRangeNote"></span></div>
     <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="repBigTable"></table></div>
 
-    <div class="sec">Monthly attainment</div>
-    <div class="card" id="attainment"></div>
-
-    <div class="sec">The three thermometers <small>— contracts → effort → results</small></div>
+    <div class="sec">Contracts → Effort → Results</div>
     <div class="card" id="thermo"></div>
 
     <div class="sec">All-time history <small>— every month, forever</small></div>
@@ -196,6 +193,16 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <p style="font-size:11px;color:var(--mut);margin-top:8px">Paste into a Claude chat: "Analyze my dispo operation — nurture discipline, rep vs targets, velocity, leaks, and what to fix next week."</p>
   </div>
 
+  <!-- DATA CENTER -->
+  <div class="view" id="v-data">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="dcRange"></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(105px,1fr))" id="dcGrid"></div>
+    <div class="sec">Conversion — selected range</div>
+    <div class="card" id="dcConv"></div>
+    <div class="sec">Deal flow — selected range</div>
+    <div class="card" id="dcFlow"></div>
+  </div>
+
   <!-- SETTINGS -->
   <div class="view" id="v-settings">
     <div class="sec">Daily targets</div>
@@ -211,6 +218,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
   <button data-v="owner" onclick="nav('owner')"><span class="ic">📊</span>Operator</button>
   <button data-v="reps" onclick="nav('reps')"><span class="ic">👤</span>Reps</button>
   <button data-v="insights" onclick="nav('insights')"><span class="ic">🤖</span>Insights</button>
+  <button data-v="data" onclick="nav('data')"><span class="ic">🗄️</span>Data</button>
   <button data-v="settings" onclick="nav('settings')"><span class="ic">⚙️</span>Inputs/Outputs</button>
 </div>
 
@@ -247,7 +255,7 @@ function nav(v){
   document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});
   document.getElementById('v-'+v).classList.add('on');
   document.querySelectorAll('.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
-  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Operator View',reps:'Rep Performance',insights:'AI Insights',settings:'Inputs / Outputs'}[v];
+  document.getElementById('pageTitle').textContent={today:'Today',deals:'Deals',owner:'Operator View',reps:'Rep Performance',data:'Data Center',insights:'AI Insights',settings:'Inputs / Outputs'}[v];
   render();
 }
 
@@ -516,6 +524,69 @@ function priceDropAlert(d){
   var col = dl>=13?'var(--red)':'var(--amber)';
   return '<div style="margin-top:6px;font-size:11px;font-weight:700;color:'+col+'">📉 Day '+dl+' live, zero offers — SOP day-'+th+' price review due <button class="act" style="margin-left:6px" onclick="event.stopPropagation();openLog(\'drop\',\''+d.id+'\')">Drop price</button></div>';
 }
+var DC_RANGE = 'Month';
+function setDcRange(r){ DC_RANGE=r; renderData(); }
+function renderData(){
+  var t=today();
+  var now=new Date();
+  var ranges={
+    'Day':t,
+    'Week':daysAgo(6),
+    'Month':t.slice(0,8)+'01',
+    'Quarter':new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1).toISOString().split('T')[0],
+    'Year':now.getFullYear()+'-01-01',
+    'All time':'2000-01-01'
+  };
+  var from=ranges[DC_RANGE];
+  document.getElementById('dcRange').innerHTML=Object.keys(ranges).map(function(r){
+    return '<button class="btn'+(r===DC_RANGE?' p':'')+'" style="font-size:12px" onclick="setDcRange(\''+r+'\')">'+r+'</button>';
+  }).join('');
+
+  var wd=workDays(from==='2000-01-01'?(D.deals.length?(D.deals[0].created_at||t).slice(0,10):t):from,t);
+  var ks=kpiSet(from,t);
+  var closed=D.deals.filter(function(d){
+    if(d.stage!=='Closed') return false;
+    var cd=histDateG(d.id,'Closed')||d.closing_deadline||null;
+    return cd && cd>=from && cd<=t;
+  });
+  var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+  var sendsR=D.sends.filter(function(s){return s.sent_on>=from&&s.sent_on<=t});
+  var dropsR=D.drops.filter(function(x){return x.dropped_on>=from&&x.dropped_on<=t}).length;
+  var fbR=D.fb.filter(function(x){return x.fb_on>=from&&x.fb_on<=t}).length;
+
+  var cells=[];
+  ks.forEach(function(k){ cells.push({n:k.n,v:k.v.toLocaleString(),sub:'target '+(k.t*wd).toLocaleString(),hit:k.v>=k.t*wd}); });
+  cells.push({n:'Assignments Closed',v:closed.length,sub:'',hit:false});
+  cells.push({n:'Revenue Closed',v:fmt$(rev),sub:'',hit:false});
+  cells.push({n:'Blasts Sent',v:sendsR.length,sub:'',hit:false});
+  cells.push({n:'Price Drops',v:dropsR,sub:'',hit:false});
+  cells.push({n:'Feedback Logged',v:fbR,sub:'',hit:false});
+  document.getElementById('dcGrid').innerHTML=cells.map(function(c){
+    return '<div class="kpi"><div class="n">'+c.n+'</div><div class="v" style="font-size:16px;color:'+(c.hit?'var(--green)':'var(--text)')+'">'+c.v+'</div>'+(c.sub?'<div style="font-size:9px;color:var(--mut)">'+c.sub+'</div>':'')+'</div>';
+  }).join('');
+
+  // Conversion
+  var dl=ks[0].v, cv=ks[1].v, bs=ks[2].v, wt=ks[3].v, of=ks[4].v;
+  function convRow(l,v){ return '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">'+l+'</span><b>'+v+'</b></div>'; }
+  document.getElementById('dcConv').innerHTML=
+    convRow('Convos per 100 dials', dl?Math.round(cv/dl*1000)/10:'—')
+    +convRow('Walkthroughs per 100 buyers sent', bs?Math.round(wt/bs*1000)/10:'—')
+    +convRow('Offers received per 10 walkthroughs', wt?Math.round(of/wt*100)/10:'—')
+    +convRow('Revenue per dial', dl?fmt$(Math.round(rev/dl)):'—');
+
+  // Deal flow
+  function stageMoves(stage){
+    var seen={}; var c=0;
+    (D.hist||[]).forEach(function(h){ if(h.stage===stage&&h.entered_on>=from&&h.entered_on<=t&&!seen[h.deal_id]){seen[h.deal_id]=1;c++;} });
+    return c;
+  }
+  var newDeals=D.deals.filter(function(d){return (d.created_at||'').slice(0,10)>=from}).length;
+  document.getElementById('dcFlow').innerHTML=
+    convRow('New contracts entered', newDeals)
+    +convRow('Deals gone live (photos in)', stageMoves('Photos Received (Live)'))
+    +convRow('Deals ghosted / died', stageMoves('Ghosted')+stageMoves('Ghosted w/ Memorandum'))
+    +convRow('Deals closed', stageMoves('Closed'));
+}
 function renderPlan(){
   var el = document.getElementById('planBlocks');
   if(PLAN_ERR){
@@ -760,22 +831,6 @@ function render(){
   });
   document.getElementById('repBigTable').innerHTML=rb;
 
-  // Monthly attainment: KPI % and Revenue %
-  var mSet=sets[2], mDays=periods[2].days, attSum=0;
-  mSet.forEach(function(k){ attSum+=Math.min(100,(k.v/(k.t*mDays))*100); });
-  var kpiAtt=Math.round(attSum/mSet.length);
-  var mClosed=closedIn(mS);
-  var mRev=mClosed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
-  var revAtt=Math.min(100,Math.round(mRev/rTm*100));
-  function attRow(label,pct,detail){
-    var col=pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
-    return '<div class="row" style="font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">'+label+'</span><b style="color:'+col+'">'+pct+'%'+(detail?' <span style="font-weight:400;color:var(--mut);font-size:10px">'+detail+'</span>':'')+'</b></div>'
-      +'<div class="sbar" style="margin-bottom:12px"><i style="width:'+pct+'%;background:'+col+'"></i></div>';
-  }
-  document.getElementById('attainment').innerHTML=
-    attRow('KPI attainment — month to date (avg of 6 activity KPIs)',kpiAtt,'')
-    +attRow('Revenue attainment — month to date',revAtt,fmt$(mRev)+' of '+fmt$(rTm));
-
   // Three thermometers: pipeline -> KPI effort -> closed revenue
   var kpiAttG=0;
   (function(){
@@ -789,19 +844,26 @@ function render(){
 
     function tube(label,val,maxV,goalV,color,fmtFn){
       var pct=Math.min(100,val/maxV*100);
+      var shortFmt=function(v){ return maxV>1000 ? '$'+Math.round(v/1000)+'K' : Math.round(v)+'%'; };
       var h='<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:86px">';
       h+='<div style="font-size:14px;font-weight:700;margin-bottom:2px">'+fmtFn(val)+'</div>';
-      h+='<div style="font-size:9px;color:var(--mut);margin-bottom:6px;text-align:center;height:24px">'+label+'</div>';
-      h+='<div style="position:relative;width:44px;height:260px;background:var(--card2);border:1px solid var(--line);border-radius:22px;overflow:hidden">';
+      h+='<div style="font-size:9px;color:var(--mut);margin-bottom:6px;text-align:center;height:14px">'+label+'</div>';
+      h+='<div style="position:relative;width:46px;height:260px;background:var(--card2);border:1px solid var(--line);border-radius:22px;overflow:hidden">';
+      // mercury (bottom layer)
+      h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px"></div>';
+      // faint 10K/10% ticks ON TOP of mercury
       var step=maxV/20;
       for(var v=step;v<maxV;v+=step){
         var bot=(v/maxV*100);
         var major=(Math.round(v/step)%5===0);
-        h+='<div style="position:absolute;left:0;right:'+(major?'0':'55%')+';bottom:'+bot+'%;height:1px;background:'+(major?'#3A4A6B':'#26334D')+'"></div>';
+        h+='<div style="position:absolute;left:0;right:'+(major?'0':'50%')+';bottom:'+bot+'%;height:1px;background:rgba(255,255,255,'+(major?'0.28':'0.12')+')"></div>';
       }
+      // gold goal line — topmost
       var gb=(goalV/maxV*100);
-      h+='<div style="position:absolute;left:-2px;right:-2px;bottom:'+gb+'%;height:3px;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>';
-      h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px"></div>';
+      h+='<div style="position:absolute;left:-2px;right:-2px;bottom:'+gb+'%;height:3px;background:var(--gold);box-shadow:0 0 8px var(--gold);z-index:3"></div>';
+      // current-level marker with value
+      var mb=Math.max(2,Math.min(94,pct-3));
+      h+='<div style="position:absolute;left:0;right:0;bottom:'+mb+'%;text-align:center;font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:4">'+shortFmt(val)+'</div>';
       h+='</div>';
       h+='<div style="font-size:9px;color:var(--gold);font-weight:700;margin-top:5px">GOAL '+fmtFn(goalV)+'</div>';
       h+='</div>';
@@ -809,9 +871,9 @@ function render(){
     }
     document.getElementById('thermo').innerHTML=
       '<div style="display:flex;gap:10px;align-items:flex-start;justify-content:center">'
-      +tube('1. Contracts — projected $ in pipeline',pipeRev,200000,goal,'#3B82F6',fmt$)
-      +tube('2. KPI effort — month attainment',kpiAttG,120,100,'#A78BFA',function(x){return x+'%'})
-      +tube('3. Closed revenue this month',mRev2,200000,goal,'#10B981',fmt$)
+      +tube('Opportunity',pipeRev,200000,goal,'#3B82F6',fmt$)
+      +tube('KPIs',kpiAttG,120,100,'#A78BFA',function(x){return x+'%'})
+      +tube('Revenue Closed',mRev2,200000,goal,'#10B981',fmt$)
       +'</div>';
 
     // Save this month's snapshot (upsert; past months freeze automatically)
@@ -855,6 +917,8 @@ function render(){
     });
     el.innerHTML=h;
   })();
+
+  renderData();
 
   // INSIGHTS — weekly digest  // INSIGHTS — weekly digest  // INSIGHTS — weekly digest
   var thisWk=kpiSet(daysAgo(6),t), lastWk=kpiSet(daysAgo(13),daysAgo(7));
