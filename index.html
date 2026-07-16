@@ -164,8 +164,11 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Monthly attainment</div>
     <div class="card" id="attainment"></div>
 
-    <div class="sec">Revenue thermometer <small>— goal $100K/month</small></div>
+    <div class="sec">The three thermometers <small>— contracts → effort → results</small></div>
     <div class="card" id="thermo"></div>
+
+    <div class="sec">All-time history <small>— every month, forever</small></div>
+    <div class="card" style="overflow-x:auto;padding:6px 12px"><table class="obt" id="histTable"></table></div>
   </div>
 
   <!-- INSIGHTS -->
@@ -264,7 +267,8 @@ async function loadAll(){
     D.targets={}; r[6].data.forEach(function(t){D.targets[t.key]=Number(t.value)});
     await loadPlan();
     await loadSop();
-    D.fb=[]; D.hist=[]; D.intelErr=null;
+    D.fb=[]; D.hist=[]; D.snaps=[]; D.intelErr=null; D.snapErr=null;
+    try{ var rs=await db.from('monthly_snapshots').select('*').order('month'); if(rs.error){D.snapErr=rs.error.message;} else {D.snaps=rs.data;} }catch(e){ D.snapErr=''+e; }
     try{
       var rf=await db.from('feedback').select('*');
       var rh=await db.from('stage_history').select('*');
@@ -772,46 +776,87 @@ function render(){
     attRow('KPI attainment — month to date (avg of 6 activity KPIs)',kpiAtt,'')
     +attRow('Revenue attainment — month to date',revAtt,fmt$(mRev)+' of '+fmt$(rTm));
 
-  // Revenue thermometers: closed vs pipeline, $0-$200K scale
+  // Three thermometers: pipeline -> KPI effort -> closed revenue
+  var kpiAttG=0;
   (function(){
-    var maxV=200000, goal=D.targets.revenue_monthly||100000;
+    var goal=D.targets.revenue_monthly||100000;
     var pipeRev=open.reduce(function(a,d){return a+(Number(d.fee_target)||0)},0);
-    function tube(label,val,color){
+    var mSet2=sets[2], mD2=periods[2].days, aSum=0;
+    mSet2.forEach(function(k){ aSum+=Math.min(100,(k.v/(k.t*mD2||1))*100); });
+    kpiAttG=Math.round(aSum/mSet2.length);
+    var mClosed2=closedIn(mS);
+    var mRev2=mClosed2.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+
+    function tube(label,val,maxV,goalV,color,fmtFn){
       var pct=Math.min(100,val/maxV*100);
-      var h='<div style="display:flex;flex-direction:column;align-items:center;flex:1">';
-      h+='<div style="font-size:14px;font-weight:700;margin-bottom:2px">'+fmt$(val)+'</div>';
-      h+='<div style="font-size:10px;color:var(--mut);margin-bottom:6px">'+label+'</div>';
+      var h='<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:86px">';
+      h+='<div style="font-size:14px;font-weight:700;margin-bottom:2px">'+fmtFn(val)+'</div>';
+      h+='<div style="font-size:9px;color:var(--mut);margin-bottom:6px;text-align:center;height:24px">'+label+'</div>';
       h+='<div style="position:relative;width:44px;height:260px;background:var(--card2);border:1px solid var(--line);border-radius:22px;overflow:hidden">';
-      // tick marks every 10K, bolder every 50K
-      for(var v=10000;v<maxV;v+=10000){
+      var step=maxV/20;
+      for(var v=step;v<maxV;v+=step){
         var bot=(v/maxV*100);
-        h+='<div style="position:absolute;left:0;right:'+(v%50000===0?'0':'55%')+';bottom:'+bot+'%;height:1px;background:'+(v%50000===0?'#3A4A6B':'#26334D')+'"></div>';
+        var major=(Math.round(v/step)%5===0);
+        h+='<div style="position:absolute;left:0;right:'+(major?'0':'55%')+';bottom:'+bot+'%;height:1px;background:'+(major?'#3A4A6B':'#26334D')+'"></div>';
       }
-      // goal line
-      var gb=(goal/maxV*100);
+      var gb=(goalV/maxV*100);
       h+='<div style="position:absolute;left:-2px;right:-2px;bottom:'+gb+'%;height:3px;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>';
-      // mercury
-      h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px;transition:height 0.6s"></div>';
+      h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px"></div>';
       h+='</div>';
-      h+='<div style="font-size:9px;color:var(--gold);font-weight:700;margin-top:5px">GOAL '+fmt$(goal)+'</div>';
+      h+='<div style="font-size:9px;color:var(--gold);font-weight:700;margin-top:5px">GOAL '+fmtFn(goalV)+'</div>';
       h+='</div>';
       return h;
     }
-    // scale labels column
-    var labels='<div style="display:flex;flex-direction:column-reverse;justify-content:space-between;height:260px;margin-top:44px;padding-bottom:0">';
-    for(var lv=0;lv<=maxV;lv+=50000){ labels+='<div style="font-size:9px;color:var(--mut)">$'+(lv/1000)+'K</div>'; }
-    labels+='</div>';
-    var mClosed2=closedIn(mS);
-    var mRev2=mClosed2.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
     document.getElementById('thermo').innerHTML=
-      '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:center">'
-      +labels
-      +tube('Closed this month',mRev2,'#10B981')
-      +tube('Pipeline (open fee $)',pipeRev,'#3B82F6')
+      '<div style="display:flex;gap:10px;align-items:flex-start;justify-content:center">'
+      +tube('1. Contracts — projected $ in pipeline',pipeRev,200000,goal,'#3B82F6',fmt$)
+      +tube('2. KPI effort — month attainment',kpiAttG,120,100,'#A78BFA',function(x){return x+'%'})
+      +tube('3. Closed revenue this month',mRev2,200000,goal,'#10B981',fmt$)
       +'</div>';
+
+    // Save this month's snapshot (upsert; past months freeze automatically)
+    if(!D.snapErr){
+      db.from('monthly_snapshots').upsert({month:t.slice(0,7),pipeline:pipeRev,kpi_att:kpiAttG,revenue:mRev2},{onConflict:'month'}).then(function(r){});
+    }
   })();
 
-  // INSIGHTS — weekly digest  // INSIGHTS — weekly digest
+  // All-time history table
+  (function(){
+    var el=document.getElementById('histTable');
+    if(D.snapErr){ el.innerHTML='<tr><td style="color:var(--red)">History table missing — run the snapshot SQL, then refresh.</td></tr>'; return; }
+    if(!D.snaps.length){ el.innerHTML='<tr><td style="color:var(--mut)">History builds automatically — this month becomes the first entry.</td></tr>'; return; }
+    var goal=D.targets.revenue_monthly||100000;
+    var h='<tr><th>Period</th><th>Pipeline $</th><th>KPI %</th><th>Closed Rev</th><th>Goal</th></tr>';
+    var snaps=D.snaps.slice().sort(function(a,b){return a.month<b.month?1:-1});
+    var byYear={}, byQ={};
+    snaps.forEach(function(s){
+      var y=s.month.slice(0,4), q=y+'-Q'+(Math.floor((Number(s.month.slice(5,7))-1)/3)+1);
+      (byYear[y]=byYear[y]||[]).push(s); (byQ[q]=byQ[q]||[]).push(s);
+    });
+    var seenQ={}, seenY={};
+    snaps.forEach(function(s){
+      var y=s.month.slice(0,4), q=y+'-Q'+(Math.floor((Number(s.month.slice(5,7))-1)/3)+1);
+      var mLabel=new Date(s.month+'-15').toLocaleDateString('en-US',{month:'short',year:'numeric'});
+      var hit=Number(s.revenue)>=goal;
+      h+='<tr><td>'+mLabel+'</td><td>'+fmt$(s.pipeline)+'</td><td>'+Math.round(s.kpi_att)+'%</td><td class="'+(hit?'ok-green':'')+'">'+fmt$(s.revenue)+'</td><td>'+(hit?'✓':'—')+'</td></tr>';
+      // quarter rollup after last month of that quarter in the list
+      if(!seenQ[q] && byQ[q].length>1){
+        seenQ[q]=1;
+        var qs=byQ[q], qRev=qs.reduce(function(a,x){return a+Number(x.revenue||0)},0);
+        var qK=Math.round(qs.reduce(function(a,x){return a+Number(x.kpi_att||0)},0)/qs.length);
+        h+='<tr style="background:var(--card2)"><td style="font-weight:700">'+q+'</td><td>—</td><td>'+qK+'% avg</td><td class="'+(qRev>=goal*3?'ok-green':'')+'">'+fmt$(qRev)+'</td><td>'+(qRev>=goal*3?'✓':'—')+'</td></tr>';
+      }
+      if(!seenY[y] && byYear[y].length>2){
+        seenY[y]=1;
+        var ys=byYear[y], yRev=ys.reduce(function(a,x){return a+Number(x.revenue||0)},0);
+        var yK=Math.round(ys.reduce(function(a,x){return a+Number(x.kpi_att||0)},0)/ys.length);
+        h+='<tr style="background:var(--card2)"><td style="font-weight:700">'+y+' TOTAL</td><td>—</td><td>'+yK+'% avg</td><td class="'+(yRev>=goal*12?'ok-green':'')+'">'+fmt$(yRev)+'</td><td>'+(yRev>=goal*12?'✓':'—')+'</td></tr>';
+      }
+    });
+    el.innerHTML=h;
+  })();
+
+  // INSIGHTS — weekly digest  // INSIGHTS — weekly digest  // INSIGHTS — weekly digest
   var thisWk=kpiSet(daysAgo(6),t), lastWk=kpiSet(daysAgo(13),daysAgo(7));
   var wh='<tr><th></th><th>This week</th><th>Last week</th><th>Δ</th></tr>';
   for(var wi=0;wi<thisWk.length;wi++){
