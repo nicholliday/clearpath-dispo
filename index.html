@@ -238,7 +238,7 @@ var MKT = STAGES.slice(0,4);
 var DEAD = ['Closed','Ghosted','Ghosted w/ Memorandum'];
 var TKEYS = [['dials_daily','Dials / day'],['convos_daily','Convos / day'],['reached_daily','Buyers reached / day'],['showings_daily','Showings / day'],['offers_daily','Offers / day'],['buyers_added_daily','Buyers added / day'],['min_buyers_per_deal','Min buyers per deal'],['assigned_monthly','Assignments / month'],['revenue_monthly','Revenue / month ($)']];
 
-function today(){ return new Date().toISOString().split('T')[0]; }
+function today(){ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()); }
 function fmt$(n){ return n==null?'—':'$'+Math.round(n).toLocaleString(); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
@@ -410,7 +410,7 @@ function daysUnder(d){ return d.contract_date?Math.floor((new Date(today())-new 
 function sumFeed(ev,from,to){ return D.feed.filter(function(f){return f.event===ev&&f.happened_on>=from&&f.happened_on<=to}).reduce(function(a,f){return a+(f.count||1)},0); }
 function sumReached(from,to){ return D.sends.filter(function(s){return s.sent_on>=from&&s.sent_on<=to}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
 function countRows(arr,dateKey,from,to){ return arr.filter(function(x){return x[dateKey]>=from&&x[dateKey]<=to}).length; }
-function daysAgo(n){ var d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; }
+function daysAgo(n){ var d=new Date(today()+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()-n); return d.toISOString().split('T')[0]; }
 
 function kpiSet(from,to){
   return [
