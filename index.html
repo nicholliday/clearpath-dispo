@@ -408,7 +408,7 @@ function lastTouch(d){
 function needsTouch(d){ return MKT.indexOf(d.stage)>=0 && lastTouch(d)!==today(); }
 function daysUnder(d){ return d.contract_date?Math.floor((new Date(today())-new Date(d.contract_date))/86400000):null; }
 function sumFeed(ev,from,to){ return D.feed.filter(function(f){return f.event===ev&&f.happened_on>=from&&f.happened_on<=to}).reduce(function(a,f){return a+(f.count||1)},0); }
-function sumReached(from,to){ return D.sends.filter(function(s){return s.sent_on>=from&&s.sent_on<=to}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
+function sumReached(from,to){ return D.sends.filter(function(s){return s.sent_on>=from&&s.sent_on<=to}).reduce(function(a,s){return a+(s.buyers_reached||0)},0) + sumFeed('buyer_sent',from,to); }
 function countRows(arr,dateKey,from,to){ return arr.filter(function(x){return x[dateKey]>=from&&x[dateKey]<=to}).length; }
 function daysAgo(n){ var d=new Date(today()+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()-n); return d.toISOString().split('T')[0]; }
 
