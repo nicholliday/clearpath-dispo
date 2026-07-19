@@ -378,9 +378,15 @@ async function toggleSop(dealId,key){
   openDeal(dealId);
 }
 
-function dealLabel(d){
-  if(d.seller_name && d.address && d.seller_name!==d.address) return esc(d.seller_name)+' ('+esc(d.address)+')';
-  return esc(d.address);
+function dealLabel(d){ return esc(d.address); }
+function normTag(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function autoReached(d){ return D.feed.filter(function(f){return f.event==='buyer_sent'&&normTag(f.detail)===normTag(d.address)}).reduce(function(a,f){return a+(f.count||1)},0); }
+function copyBlastTag(id){ var d=D.deals.find(function(x){return x.id===id}); if(!d) return;
+  var doneMsg=function(){ var el=document.createElement('div'); el.textContent='📋 Blast tag copied: '+d.address;
+  el.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1B2A4A;color:#E8EDF7;border:1px solid #C9A227;padding:9px 16px;border-radius:10px;font-size:12px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+  document.body.appendChild(el); setTimeout(function(){ el.remove(); },2200); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(d.address).then(doneMsg,function(){ prompt('Copy this blast tag:', d.address); }); }
+  else { prompt('Copy this blast tag:', d.address); }
 }
 function stageClass(s){
   if(s==='Our Listing Agents')return 'st-agents';
@@ -392,7 +398,7 @@ function stageClass(s){
   return 'st-ghost';
 }
 function dealCode(d){ var idx=D.deals.findIndex(function(x){return x.id===d.id}); return 'D-'+String(idx+1).padStart(3,'0'); }
-function reached(d){ return D.sends.filter(function(s){return s.deal_id===d.id}).reduce(function(a,s){return a+(s.buyers_reached||0)},0); }
+function reached(d){ return D.sends.filter(function(s){return s.deal_id===d.id}).reduce(function(a,s){return a+(s.buyers_reached||0)},0) + autoReached(d); }
 function bestOffer(d){ var o=D.offers.filter(function(x){return x.deal_id===d.id}); return o.length?Math.max.apply(null,o.map(function(x){return Number(x.amount)||0})):null; }
 function pendingOffers(){ return D.offers.filter(function(o){return o.status==='New'||o.status==='Countered'}).length; }
 function currentPrice(d){ var dr=D.drops.filter(function(x){return x.deal_id===d.id}).sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at)}); return dr.length?dr[dr.length-1].new_price:d.start_ask; }
@@ -648,7 +654,7 @@ function dealCard(d,compact){
   var r=reached(d), min=D.targets.min_buyers_per_deal||100, pct=Math.min(100,Math.round(r/min*100));
   var nt=needsTouch(d), bo=bestOffer(d), du=daysUnder(d);
   var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
-    +'<div class="row"><div><b style="font-size:14px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
+    +'<div class="row"><div><b style="font-size:14px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span> <span title="Copy blast tag" style="cursor:pointer;font-size:11px" onclick="event.stopPropagation();copyBlastTag(\''+d.id+'\')">📋</span></div>'
     +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
     +(function(){
       function dl(dt,label){
@@ -1194,14 +1200,18 @@ async function delDeal(id){
 
 function openDeal(id){
   var d=D.deals.find(function(x){return x.id===id});
+  var autoByDay={};
+  D.feed.forEach(function(f){ if(f.event==='buyer_sent'&&normTag(f.detail)===normTag(d.address)){ autoByDay[f.happened_on]=(autoByDay[f.happened_on]||0)+(f.count||1); } });
+  var autoEvs=Object.keys(autoByDay).map(function(day){ return {d:day,t:'🤖 Auto-blast to '+autoByDay[day]+' buyers (GHL)'}; });
   var evs=[].concat(
+    autoEvs,
     D.sends.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.sent_on,t:'📤 Sent to '+(x.buyers_reached||0)+' buyers ('+x.channel+')'+(x.list_name?' — '+esc(x.list_name):'')}}),
     D.showings.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.shown_on,t:'🚪 Showing — '+esc(x.buyer||'')+' ('+esc(x.outcome||'')+')'}}),
     D.offers.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.offered_on,t:'💰 Offer '+fmt$(x.amount)+' — '+esc(x.buyer||'')+' ['+esc(x.status)+']'}}),
     D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}}),
     D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
-  var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span></h2>'
+  var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button></h2>'
   +(d.death_reason?'<div style="font-size:11px;color:var(--red);margin-bottom:8px">💀 '+esc(d.death_reason)+(d.death_notes?' — '+esc(d.death_notes):'')+' <button class="act" onclick="closeModal();openLog(\'autopsy\',\''+d.id+'\')">edit</button></div>':'')
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
