@@ -838,7 +838,7 @@ function render(){
   var aTm=D.targets.assigned_monthly||10, rTm=D.targets.revenue_monthly||100000;
   var moneyT={'Today':null,'Week':0.25,'Month':1,'Quarter':3,'Year':12};
   var kpiNames=sets[0].map(function(k){return k.n});
-  var rb='<tr><th></th>'+kpiNames.map(function(n){return '<th>'+n+'</th>'}).join('')+'<th>Talk Time</th><th>Assignments</th><th>Revenue</th></tr>';
+  var rb='<tr><th></th>'+kpiNames.map(function(n){return '<th>'+n+'</th>'}).join('')+'<th>Talk Time</th><th>Deals Closed</th><th>Revenue</th></tr>';
   periods.forEach(function(p,pi){
     rb+='<tr><td style="font-weight:700">'+p.n+'</td>';
     sets[pi].forEach(function(kv){
