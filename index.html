@@ -444,12 +444,31 @@ function dealSearch(q,target){
 }
 function normTag(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function autoReached(d){ return D.feed.filter(function(f){return f.event==='buyer_sent'&&normTag(f.detail)===normTag(d.address)}).reduce(function(a,f){return a+(f.count||1)},0); }
+function blastText(d){
+  var type = d.market_type ? d.market_type.toLowerCase() : 'deal';
+  var lines = ['🏠 Off-market '+type+' — '+d.address];
+  var l2 = [];
+  if(d.beds||d.baths) l2.push((d.beds||'?')+'/'+(d.baths||'?'));
+  if(d.sqft) l2.push(Number(d.sqft).toLocaleString()+' sqft');
+  if(l2.length) lines.push(l2.join(' · '));
+  var l3 = [];
+  var ask = currentPrice(d); if(ask) l3.push(fmt$(ask));
+  var isRental = (d.market_type||'').toLowerCase().indexOf('rental')>=0;
+  if(isRental && d.est_rent) l3.push('rents '+fmt$(d.est_rent)+'/mo');
+  if(d.arv) l3.push('ARV '+fmt$(d.arv));
+  if(l3.length) lines.push(l3.join(' · '));
+  lines.push('Photos + details: '+d.invbase_link);
+  lines.push('Would you like to view this one?');
+  return lines.join('\n');
+}
 function copyBlastTag(id){ var d=D.deals.find(function(x){return x.id===id}); if(!d) return;
-  var doneMsg=function(){ var el=document.createElement('div'); el.textContent='📋 Blast tag copied: '+d.address;
+  if(!d.invbase_link){ alert('Add the investor base link first (the 🔗 bar) — the blast text needs it.'); return; }
+  var txt = blastText(d);
+  var doneMsg=function(){ var el=document.createElement('div'); el.textContent='📋 Blast text copied — paste into GHL "Current Deal Blast"';
   el.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1B2A4A;color:#E8EDF7;border:1px solid #C9A227;padding:9px 16px;border-radius:10px;font-size:12px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.4)';
   document.body.appendChild(el); setTimeout(function(){ el.remove(); },2200); };
-  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(d.address).then(doneMsg,function(){ prompt('Copy this blast tag:', d.address); }); }
-  else { prompt('Copy this blast tag:', d.address); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(doneMsg,function(){ prompt('Copy this blast text:', txt); }); }
+  else { prompt('Copy this blast text:', txt); }
 }
 function stageClass(s){
   if(s==='Our Listing Agents')return 'st-agents';
@@ -1229,6 +1248,9 @@ function openDealForm(existing){
   +'<label>Seller name</label><input id="f_seller" value="'+esc(d.seller_name||'')+'">'
   +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
   +'<label>Investor base link (for auto share-tracking)</label><input id="f_invlink" placeholder="https://…" value="'+esc(d.invbase_link||'')+'">'
+  +'<div class="half"><div><label>Marketing type</label><select id="f_mkt">'+['','Flip','Rental','Flip or Rental'].map(function(o){return '<option'+((d.market_type||'')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div><div><label>ARV</label><input type="number" id="f_arv" value="'+(d.arv||'')+'"></div></div>'
+  +'<div class="half"><div><label>Beds</label><input type="number" id="f_beds" value="'+(d.beds||'')+'"></div><div><label>Baths</label><input type="number" id="f_baths" value="'+(d.baths||'')+'"></div></div>'
+  +'<div class="half"><div><label>Sqft</label><input type="number" id="f_sqft" value="'+(d.sqft||'')+'"></div><div><label>Est. rent/mo (rentals)</label><input type="number" id="f_rent" value="'+(d.est_rent||'')+'"></div></div>'
   +'<label>Location / area</label><input id="f_area" value="'+esc(d.area||'')+'">'
   +'<div class="half"><div><label>Contract price</label><input type="number" id="f_cp" value="'+(d.contract_price||'')+'"></div><div><label>Asking price</label><input type="number" id="f_ask" value="'+(d.start_ask||'')+'"></div></div>'
   +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Deal type</label><select id="f_type">'+['Cash','Novation','Double Close'].map(function(o){return '<option'+((d.deal_type||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
@@ -1245,6 +1267,12 @@ function openDealForm(existing){
 async function saveDeal(id){
   var row={seller_name:document.getElementById('f_seller').value||null,address:document.getElementById('f_addr').value,
     invbase_link:document.getElementById('f_invlink').value||null,
+    market_type:document.getElementById('f_mkt').value||null,
+    arv:Number(document.getElementById('f_arv').value)||null,
+    beds:Number(document.getElementById('f_beds').value)||null,
+    baths:Number(document.getElementById('f_baths').value)||null,
+    sqft:Number(document.getElementById('f_sqft').value)||null,
+    est_rent:Number(document.getElementById('f_rent').value)||null,
     area:document.getElementById('f_area').value,
     contract_price:Number(document.getElementById('f_cp').value)||null,
     start_ask:Number(document.getElementById('f_ask').value)||null,
