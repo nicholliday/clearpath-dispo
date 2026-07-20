@@ -308,6 +308,7 @@ var SOP_CASH=[
   ['photosin','Photos received & saved']]},
  {sec:'3. Dispo Launch',items:[
   ['dates','Critical dates set in CRM (inspection end + warning, closing + warning)'],
+  ['details','Fill out Details section on the deal (marketing type, beds/baths, sqft, ARV, rent if rental)'],
   ['prec','Photos received email with only closing day sent'],
   ['listing','Deal listing created in investor base + put the link in the deal shared auto counter'],
   ['blast','Blast sent to buyer list'],
@@ -409,6 +410,7 @@ var SOP_HOW = {
  emdwire:'The chase chain — confirm every link: get <b>title to send wire instructions directly to the buyer</b> → confirm title sent it <b>instantly</b> → confirm buyer <b>received</b> it → confirm buyer <b>sent the wire</b> → confirm title <b>received it</b>.',
  emdrcpt:'The last link of the wire chain: get <b>proof of receipt from title</b> — an actual receipt, not a verbal "we got it." Save it to the deal.',
  nurture:'No fixed cadence — <b>nobody in the dark</b>. As closing nears, escalate: <b>1 week out</b> — ask title directly: "is everything set to close?" <b>Days before</b> — confirm both parties are scheduled in. <b>Day of</b> — be notified as each step lands: each party signed → funds sent → funds received → funds disbursed.',
+ details:'Open this deal → <b>✏️ Details</b> → fill: Marketing type (Flip / Rental / Flip or Rental), beds, baths, sqft, ARV, asking price — and Est. rent/mo if it\'s a rental. These numbers <b>build the blast text automatically</b> when you tap 📋 — empty fields = a weaker blast. Same numbers as the investor base listing, entered once here.',
  crmclose:'In GHL: move the opportunity to the <b>"Deal Closed"</b> section and enter the revenue closed amount in the <b>"value"</b> field. This is what feeds the Deals Closed + Revenue columns on the Rep Performance board — skip it and the win doesn\'t exist.'
 };
 SOP_HOW.magic='<b>Magic Question #1 (text or call):</b> <i>"Appreciate your offer of $___ on ___. Is that the best you can do?"</i><br><b>Magic Question #2 (call only):</b> <i>"We do have multiple offers and would love to get you into the deal — is $___ really the best you can do?"</i><br><b>Magic Question #3:</b> <i>"You\'re close but not #1. If you want to improve before the deadline, now\'s the time."</i>';
@@ -1244,7 +1246,7 @@ async function saveDrop(){
 // ---------- deal form + detail ----------
 function openDealForm(existing){
   var d=existing||{};
-  var h='<h2>'+(existing?'Edit deal':'New deal')+'</h2>'
+  var h='<h2>'+(existing?'Deal details':'New deal')+'</h2>'
   +'<label>Seller name</label><input id="f_seller" value="'+esc(d.seller_name||'')+'">'
   +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
   +'<label>Investor base link (for auto share-tracking)</label><input id="f_invlink" placeholder="https://…" value="'+esc(d.invbase_link||'')+'">'
@@ -1324,7 +1326,7 @@ function openDeal(id){
   +'<button onclick="closeModal();openLog(\'offer\',\''+id+'\')">+ Offer</button>'
   +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
   +'<button onclick="closeModal();openLog(\'feedback\',\''+id+'\')">💬 Feedback</button>'
-  +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Edit</button></div>'
+  +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Details</button></div>'
   +(function(){
     var tpl=sopTemplate(d), checks=SOP[d.id]||{}, pr=sopProgress(d);
     var h='<div class="sec" style="margin-top:0">SOP checklist <small>'+pr.done+' / '+pr.total+'</small></div>';
