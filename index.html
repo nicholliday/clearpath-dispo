@@ -940,7 +940,7 @@ function render(){
     var mClosed2=closedIn(mS);
     var mRev2=mClosed2.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
 
-    function tube(label,val,maxV,goalV,color,fmtFn){
+    function tube(label,val,maxV,goalV,color,fmtFn,cap){
       var pct=Math.min(100,val/maxV*100);
       var shortFmt=function(v){ return maxV>1000 ? '$'+Math.round(v/1000)+'K' : Math.round(v)+'%'; };
       var h='<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:86px">';
@@ -949,12 +949,13 @@ function render(){
       h+='<div style="position:relative;width:46px;height:260px;background:var(--card2);border:1px solid var(--line);border-radius:22px;overflow:hidden">';
       // mercury (bottom layer)
       h+='<div style="position:absolute;left:4px;right:4px;bottom:4px;height:'+Math.max(1,pct*0.97)+'%;background:linear-gradient(180deg,'+color+','+color+'CC);border-radius:18px"></div>';
-      // faint 10K/10% ticks ON TOP of mercury
+      // labeled 10K ticks ON TOP of mercury
       var step=maxV/20;
       for(var v=step;v<maxV;v+=step){
         var bot=(v/maxV*100);
         var major=(Math.round(v/step)%5===0);
-        h+='<div style="position:absolute;left:0;right:'+(major?'0':'50%')+';bottom:'+bot+'%;height:1px;background:rgba(255,255,255,'+(major?'0.28':'0.12')+')"></div>';
+        h+='<div style="position:absolute;left:0;right:'+(major?'0':'50%')+';bottom:'+bot+'%;height:1px;background:rgba(255,255,255,'+(major?'0.30':'0.14')+')"></div>';
+        h+='<div style="position:absolute;left:2px;bottom:'+bot+'%;transform:translateY(45%);font-size:6.5px;font-weight:'+(major?'700':'400')+';color:rgba(255,255,255,'+(major?'0.55':'0.32')+');z-index:2;pointer-events:none">'+shortFmt(v)+'</div>';
       }
       // gold goal line — topmost
       var gb=(goalV/maxV*100);
@@ -964,12 +965,13 @@ function render(){
       h+='<div style="position:absolute;left:0;right:0;bottom:'+mb+'%;text-align:center;font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:4">'+shortFmt(val)+'</div>';
       h+='</div>';
       h+='<div style="font-size:9px;color:var(--gold);font-weight:700;margin-top:5px">GOAL '+fmtFn(goalV)+'</div>';
+      if(cap) h+='<div style="font-size:8.5px;color:var(--mut);margin-top:6px;line-height:1.5;text-align:center;max-width:110px">'+cap+'</div>';
       h+='</div>';
       return h;
     }
     document.getElementById('thermo').innerHTML=
       '<div style="display:flex;gap:10px;align-items:flex-start;justify-content:center">'
-      +tube('Opportunity',pipeRev,200000,goal,'#3B82F6',fmt$)
+      +tube('Opportunity',pipeRev,200000,goal,'#3B82F6',fmt$,'Total fee targets of every open contract — the money currently on the table.')
       +(function(){
         // SOP-manufactured revenue: fee target x weighted checklist completion.
         // Section weights: early admin light, launch/outreach medium, offer/assignment heavy.
@@ -989,16 +991,10 @@ function render(){
         }
         var pool=D.deals.filter(function(x){return DEAD.indexOf(x.stage)<0||x.stage==='Closed'});
         var sopRev=Math.round(pool.reduce(function(a,x){return a+sopDollar(x)},0));
-        return tube('SOP $',sopRev,200000,goal,'#C9A227',fmt$);
+        return tube('SOP $',sopRev,200000,goal,'#C9A227',fmt$,'Each deal\'s fee × how much of its SOP is done, weighted (offer/closing ×3, launch/outreach ×2, admin ×1). Starting deals earns pennies — finishing them earns the fee.');
       })()
-      +tube('KPI $',Math.round(goal*kpiAttG/100),200000,goal,'#A78BFA',fmt$)
-      +tube('Revenue Closed',mRev2,200000,goal,'#10B981',fmt$)
-      +'</div>'
-      +'<div style="margin-top:10px;font-size:10px;color:var(--mut);line-height:1.7">'
-      +'<b style="color:#3B82F6">Opportunity</b> — total fee targets of every open contract: the money currently on the table.<br>'
-      +'<b style="color:#C9A227">SOP $</b> — each deal\'s fee × how much of its full SOP is done, weighted (offer/closing steps ×3, launch/outreach ×2, admin ×1). Revenue you\'ve manufactured by executing the process — starting deals earns pennies, finishing them earns the fee.<br>'
-      +'<b style="color:#A78BFA">KPI $</b> — this month\'s activity vs targets (dials, convos, buyers sent…) converted to dollars: hitting 100% of every KPI = the full $'+Math.round((D.targets.revenue_monthly||100000)/1000)+'K of effort.<br>'
-      +'<b style="color:#10B981">Revenue Closed</b> — fees actually collected on deals closed this month. The only column that pays.'
+      +tube('KPI $',Math.round(goal*kpiAttG/100),200000,goal,'#A78BFA',fmt$,'This month\'s activity vs targets (dials, convos, buyers sent…) as dollars — 100% of every KPI = the full goal of effort.')
+      +tube('Revenue Closed',mRev2,200000,goal,'#10B981',fmt$,'Fees actually collected on deals closed this month. The only column that pays.')
       +'</div>';
 
     // Save this month's snapshot (upsert; past months freeze automatically)
