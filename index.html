@@ -991,8 +991,14 @@ function render(){
         var sopRev=Math.round(pool.reduce(function(a,x){return a+sopDollar(x)},0));
         return tube('SOP $',sopRev,200000,goal,'#C9A227',fmt$);
       })()
-      +tube('KPIs',kpiAttG,120,100,'#A78BFA',function(x){return x+'%'})
+      +tube('KPI $',Math.round(goal*kpiAttG/100),200000,goal,'#A78BFA',fmt$)
       +tube('Revenue Closed',mRev2,200000,goal,'#10B981',fmt$)
+      +'</div>'
+      +'<div style="margin-top:10px;font-size:10px;color:var(--mut);line-height:1.7">'
+      +'<b style="color:#3B82F6">Opportunity</b> — total fee targets of every open contract: the money currently on the table.<br>'
+      +'<b style="color:#C9A227">SOP $</b> — each deal\'s fee × how much of its full SOP is done, weighted (offer/closing steps ×3, launch/outreach ×2, admin ×1). Revenue you\'ve manufactured by executing the process — starting deals earns pennies, finishing them earns the fee.<br>'
+      +'<b style="color:#A78BFA">KPI $</b> — this month\'s activity vs targets (dials, convos, buyers sent…) converted to dollars: hitting 100% of every KPI = the full $'+Math.round((D.targets.revenue_monthly||100000)/1000)+'K of effort.<br>'
+      +'<b style="color:#10B981">Revenue Closed</b> — fees actually collected on deals closed this month. The only column that pays.'
       +'</div>';
 
     // Save this month's snapshot (upsert; past months freeze automatically)
