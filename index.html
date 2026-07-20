@@ -970,6 +970,27 @@ function render(){
     document.getElementById('thermo').innerHTML=
       '<div style="display:flex;gap:10px;align-items:flex-start;justify-content:center">'
       +tube('Opportunity',pipeRev,200000,goal,'#3B82F6',fmt$)
+      +(function(){
+        // SOP-manufactured revenue: fee target x weighted checklist completion.
+        // Section weights: early admin light, launch/outreach medium, offer/assignment heavy.
+        function secWeight(sec){
+          if(sec.indexOf('Offer')>=0||sec.indexOf('Closing')>=0) return 3;
+          if(sec.indexOf('Dispo Launch')>=0||sec.indexOf('Buyer Outreach')>=0||sec.indexOf('Agent-Led')>=0) return 2;
+          return 1;
+        }
+        function sopDollar(d){
+          var fee=Number(d.fee_target)||0; if(!fee) return 0;
+          if(d.stage==='Closed') return Number(d.revenue_closed)||fee;
+          var tpl=sopTemplate(d), checks=SOP[d.id]||{};
+          var wTot=0, wDone=0;
+          tpl.forEach(function(s){ var w=secWeight(s.sec);
+            s.items.forEach(function(it){ wTot+=w; if(checks[it[0]]) wDone+=w; }); });
+          return wTot? fee*(wDone/wTot) : 0;
+        }
+        var pool=D.deals.filter(function(x){return DEAD.indexOf(x.stage)<0||x.stage==='Closed'});
+        var sopRev=Math.round(pool.reduce(function(a,x){return a+sopDollar(x)},0));
+        return tube('SOP $',sopRev,200000,goal,'#C9A227',fmt$);
+      })()
       +tube('KPIs',kpiAttG,120,100,'#A78BFA',function(x){return x+'%'})
       +tube('Revenue Closed',mRev2,200000,goal,'#10B981',fmt$)
       +'</div>';
