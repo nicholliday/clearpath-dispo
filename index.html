@@ -119,6 +119,8 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 
   <!-- TODAY -->
   <div class="view on" id="v-today">
+    <input id="dsearch-today" placeholder="🔍 Search deals by address…" autocomplete="off" style="width:100%;box-sizing:border-box;margin-bottom:4px" oninput="dealSearch(this.value,'dsr-today')">
+    <div id="dsr-today"></div>
     <div class="sec" style="margin-top:0">Today's contract plan <small id="planProg"></small></div>
     <div id="planBlocks"><div class="loading">Loading…</div></div>
     <div class="sec">My KPIs — today</div>
@@ -128,6 +130,8 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 
   <!-- DEALS -->
   <div class="view" id="v-deals">
+    <input id="dsearch-deals" placeholder="🔍 Search deals by address…" autocomplete="off" style="width:100%;box-sizing:border-box;margin-bottom:8px" oninput="dealSearch(this.value,'dsr-deals')">
+    <div id="dsr-deals"></div>
     <button class="btn g big" onclick="openDealForm()">+ New deal</button>
     <div class="sec">Open <small id="openCount"></small></div>
     <div id="dealsOpen"></div>
@@ -379,6 +383,17 @@ async function toggleSop(dealId,key){
 }
 
 function dealLabel(d){ return esc(d.address); }
+function dealSearch(q,target){
+  var box=document.getElementById(target); if(!box) return;
+  q=normTag(q);
+  if(q.length<2){ box.innerHTML=''; return; }
+  var m=D.deals.filter(function(d){
+    return normTag(d.address).indexOf(q)>=0 || normTag(d.seller_name).indexOf(q)>=0 || normTag(dealCode(d)).indexOf(q)>=0;
+  }).slice(0,8);
+  box.innerHTML = m.length
+    ? '<div style="font-size:10px;color:var(--mut);margin:4px 0">'+m.length+' match'+(m.length>1?'es':'')+'</div>'+m.map(function(d){return dealCard(d)}).join('')
+    : '<p style="font-size:12px;color:var(--mut);margin:6px 0">No deals match "'+esc(q)+'"</p>';
+}
 function normTag(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function autoReached(d){ return D.feed.filter(function(f){return f.event==='buyer_sent'&&normTag(f.detail)===normTag(d.address)}).reduce(function(a,f){return a+(f.count||1)},0); }
 function copyBlastTag(id){ var d=D.deals.find(function(x){return x.id===id}); if(!d) return;
