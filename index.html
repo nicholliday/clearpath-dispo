@@ -595,7 +595,9 @@ function renderData(){
     convRow('Convos per 100 dials', dl?Math.round(cv/dl*1000)/10:'—')
     +convRow('Walkthroughs per 100 buyers sent', bs?Math.round(wt/bs*1000)/10:'—')
     +convRow('Offers received per 10 walkthroughs', wt?Math.round(of/wt*100)/10:'—')
-    +convRow('Revenue per dial', dl?fmt$(Math.round(rev/dl)):'—');
+    +convRow('Revenue per dial', dl?fmt$(Math.round(rev/dl)):'—')
+    +(function(){ var seen={},asn=0;(D.hist||[]).forEach(function(h){ if(h.stage==='EMD In'&&h.entered_on>=from&&h.entered_on<=t&&!seen[h.deal_id]){seen[h.deal_id]=1;asn++;} });
+      return convRow('Assignments closed (target 80%)', asn?Math.round(closed.length/asn*100)+'%':'—'); })();
 
   // Deal flow
   function stageMoves(stage){
@@ -838,7 +840,7 @@ function render(){
   var aTm=D.targets.assigned_monthly||10, rTm=D.targets.revenue_monthly||100000;
   var moneyT={'Today':null,'Week':0.25,'Month':1,'Quarter':3,'Year':12};
   var kpiNames=sets[0].map(function(k){return k.n});
-  var rb='<tr><th></th>'+kpiNames.map(function(n){return '<th>'+n+'</th>'}).join('')+'<th>Talk Time</th><th>Deals Closed</th><th>Revenue</th></tr>';
+  var rb='<tr><th></th>'+kpiNames.map(function(n){return '<th>'+n+'</th>'}).join('')+'<th>Talk Time</th><th>Assignments</th><th>Deals Closed</th><th>Revenue</th></tr>';
   periods.forEach(function(p,pi){
     rb+='<tr><td style="font-weight:700">'+p.n+'</td>';
     sets[pi].forEach(function(kv){
@@ -848,8 +850,10 @@ function render(){
     var tk=sumFeed('talk_seconds',p.from,t);
     rb+='<td>'+(tk>=3600?(Math.round(tk/360)/10)+' hrs':Math.round(tk/60)+' min')+'</td>';
     var closed=closedIn(p.from), mult=moneyT[p.n];
+    var assigned=(function(from){ var seen={},c=0;(D.hist||[]).forEach(function(h){ if(h.stage==='EMD In'&&h.entered_on>=from&&h.entered_on<=t&&!seen[h.deal_id]){seen[h.deal_id]=1;c++;} }); return c; })(p.from);
     var aT=mult==null?null:(aTm*mult);
-    rb+='<td class="'+(aT!=null&&closed.length>=aT?'ok-green':'')+'">'+closed.length+(aT!=null?'<span style="color:var(--mut)">/'+aT+'</span>':'')+'</td>';
+    rb+='<td class="'+(aT!=null&&assigned>=aT?'ok-green':'')+'">'+assigned+(aT!=null?'<span style="color:var(--mut)">/'+aT+'</span>':'')+'</td>';
+    rb+='<td>'+closed.length+'</td>';
     var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
     var rT=mult==null?null:Math.round(rTm*mult);
     rb+='<td class="'+(rT!=null&&rev>=rT?'ok-green':'')+'">'+fmt$(rev)+(rT!=null?'<span style="color:var(--mut)">/'+fmt$(rT)+'</span>':'')+'</td></tr>';
