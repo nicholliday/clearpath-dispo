@@ -385,6 +385,13 @@ async function toggleSop(dealId,key){
 }
 
 function dealLabel(d){ return esc(d.address); }
+async function saveInvLink(id){
+  var v=document.getElementById('dl_inv_'+id).value.trim()||null;
+  var r=await db.from('deals').update({invbase_link:v}).eq('id',id);
+  if(r.error){ alert('Save failed: '+r.error.message); return; }
+  var d=D.deals.find(function(x){return x.id===id}); if(d) d.invbase_link=v;
+  closeModal(); openDeal(id);
+}
 function dealSearch(q,target){
   var box=document.getElementById(target); if(!box) return;
   q=normTag(q);
@@ -1235,7 +1242,12 @@ function openDeal(id){
     D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button></h2>'
-  +((!d.invbase_link)?'<div style="font-size:10px;color:var(--mut);margin-bottom:6px">🔗 No investor base link saved — manual text shares won\'t auto-track. Add it via Edit.</div>':'')
+  +'<div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid '+(d.invbase_link?'var(--line)':'var(--red)')+';border-radius:8px;padding:7px 10px;margin-bottom:8px">'
+    +'<span style="font-size:11px;white-space:nowrap">🔗 <b>Investor base link</b><br><span style="font-size:9px;color:var(--mut)">auto share-tracker</span></span>'
+    +'<input id="dl_inv_'+d.id+'" value="'+esc(d.invbase_link||'')+'" placeholder="paste link — texts containing it auto-count as shares" style="flex:1;font-size:11px;margin:0">'
+    +'<button class="act" onclick="saveInvLink(\''+d.id+'\')">Save</button>'
+    +(d.invbase_link?'<button class="act" onclick="(navigator.clipboard&&navigator.clipboard.writeText)?navigator.clipboard.writeText(\''+esc(d.invbase_link)+'\'):prompt(\'Copy:\',\''+esc(d.invbase_link)+'\')">📋</button>':'')
+    +'</div>'
   +(d.death_reason?'<div style="font-size:11px;color:var(--red);margin-bottom:8px">💀 '+esc(d.death_reason)+(d.death_notes?' — '+esc(d.death_notes):'')+' <button class="act" onclick="closeModal();openLog(\'autopsy\',\''+d.id+'\')">edit</button></div>':'')
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span>'+((d.beds||d.baths)?'<span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span>':'')+(d.arv?'<span>ARV '+fmt$(d.arv)+'</span>':'')+(d.repair_est?'<span>Repairs '+fmt$(d.repair_est)+'</span>':'')+'</div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
