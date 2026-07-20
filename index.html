@@ -1182,6 +1182,7 @@ function openDealForm(existing){
   var h='<h2>'+(existing?'Edit deal':'New deal')+'</h2>'
   +'<label>Seller name</label><input id="f_seller" value="'+esc(d.seller_name||'')+'">'
   +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
+  +'<label>Investor base link (for auto share-tracking)</label><input id="f_invlink" placeholder="https://…" value="'+esc(d.invbase_link||'')+'">'
   +'<label>Location / area</label><input id="f_area" value="'+esc(d.area||'')+'">'
   +'<div class="half"><div><label>Contract price</label><input type="number" id="f_cp" value="'+(d.contract_price||'')+'"></div><div><label>Asking price</label><input type="number" id="f_ask" value="'+(d.start_ask||'')+'"></div></div>'
   +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Deal type</label><select id="f_type">'+['Cash','Novation','Double Close'].map(function(o){return '<option'+((d.deal_type||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
@@ -1197,6 +1198,7 @@ function openDealForm(existing){
 }
 async function saveDeal(id){
   var row={seller_name:document.getElementById('f_seller').value||null,address:document.getElementById('f_addr').value,
+    invbase_link:document.getElementById('f_invlink').value||null,
     area:document.getElementById('f_area').value,
     contract_price:Number(document.getElementById('f_cp').value)||null,
     start_ask:Number(document.getElementById('f_ask').value)||null,
@@ -1233,6 +1235,7 @@ function openDeal(id){
     D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button></h2>'
+  +((!d.invbase_link)?'<div style="font-size:10px;color:var(--mut);margin-bottom:6px">🔗 No investor base link saved — manual text shares won\'t auto-track. Add it via Edit.</div>':'')
   +(d.death_reason?'<div style="font-size:11px;color:var(--red);margin-bottom:8px">💀 '+esc(d.death_reason)+(d.death_notes?' — '+esc(d.death_notes):'')+' <button class="act" onclick="closeModal();openLog(\'autopsy\',\''+d.id+'\')">edit</button></div>':'')
   +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span>'+((d.beds||d.baths)?'<span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span>':'')+(d.arv?'<span>ARV '+fmt$(d.arv)+'</span>':'')+(d.repair_est?'<span>Repairs '+fmt$(d.repair_est)+'</span>':'')+'</div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
