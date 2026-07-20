@@ -327,7 +327,7 @@ var SOP_CASH=[
   ['s7','Day-7 seller touchpoint made']]},
  {sec:'5. Offer & Assignment',items:[
   ['5offers','5+ offers received before accepting or before cancelling'],
-  ['magic','Best offers maximized (magic questions)'],
+  ['magic','Best offers maximized (<span style="color:var(--gold,#C9A227);text-decoration:underline" onclick="event.stopPropagation();var q=document.getElementById(\'magicQs\');q.style.display=q.style.display===\'none\'?\'block\':\'none\';">magic questions ▸</span>)<div id="magicQs" style="display:none;margin-top:4px;padding:6px 8px;background:var(--card,#141D2E);border-left:2px solid var(--gold,#C9A227);border-radius:6px;font-size:11px;line-height:1.6;color:var(--text)" onclick="event.stopPropagation()">1) Is that the best you can do?<br>2) You\'re super close to being the highest — can you come up at all?</div>'],
   ['assign','Assigned to best & highest · backups requested'],
   ['title','Assignment contract + buyer details to title'],
   ['emdwire','Non-refundable EMD wire instructed'],
@@ -1232,7 +1232,7 @@ function openDeal(id){
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button></h2>'
   +(d.death_reason?'<div style="font-size:11px;color:var(--red);margin-bottom:8px">💀 '+esc(d.death_reason)+(d.death_notes?' — '+esc(d.death_notes):'')+' <button class="act" onclick="closeModal();openLog(\'autopsy\',\''+d.id+'\')">edit</button></div>':'')
-  +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span><span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span><span>ARV '+fmt$(d.arv)+'</span><span>Repairs '+fmt$(d.repair_est)+'</span></div>'
+  +'<div class="meta" style="margin-bottom:12px"><span class="pill">'+esc(d.stage)+'</span><span>'+esc(d.deal_type||'')+'</span>'+((d.beds||d.baths)?'<span>'+(d.beds||'?')+'bd/'+(d.baths||'?')+'ba</span>':'')+(d.arv?'<span>ARV '+fmt$(d.arv)+'</span>':'')+(d.repair_est?'<span>Repairs '+fmt$(d.repair_est)+'</span>':'')+'</div>'
   +'<div class="meta" style="margin-bottom:12px"><span>Contract '+fmt$(d.contract_price)+'</span><span>Ask '+fmt$(currentPrice(d))+'</span><span>Fee target '+fmt$(d.fee_target)+'</span><span>Reached '+reached(d)+'/'+(D.targets.min_buyers_per_deal||100)+'</span></div>'
   +'<div class="qbtns" style="margin-bottom:14px">'
   +'<button onclick="closeModal();openLog(\'send\',\''+id+'\')">+ Send</button>'
