@@ -387,6 +387,24 @@ async function toggleSop(dealId,key){
 }
 
 function dealLabel(d){ return esc(d.address); }
+async function rocketBlast(id){
+  var d=D.deals.find(function(x){return x.id===id}); if(!d) return;
+  if(!d.market){ alert('Set the Market field first (✏️ Details) — must match the GHL buyer tag, e.g. memphis.'); return; }
+  if(!d.invbase_link){ alert('Add the investor base link first (🔗 bar) — the blast text needs it.'); return; }
+  var FN='https://voitbqpvynbvlibuzxbz.supabase.co/functions/v1/ghl-blast';
+  var HD={'Content-Type':'application/json','apikey':'sb_publishable_QreaC86dKq8FRmJPDkeenA_wZO8G5YG','Authorization':'Bearer sb_publishable_QreaC86dKq8FRmJPDkeenA_wZO8G5YG'};
+  try{
+    var c=await fetch(FN,{method:'POST',headers:HD,body:JSON.stringify({action:'count',market:d.market})});
+    var cj=await c.json();
+    if(cj.error){ alert('Count failed: '+cj.error); return; }
+    if(!cj.count){ alert('0 buyers found tagged "'+d.market+'" — check the tag spelling.'); return; }
+    if(!confirm('Blast '+d.address+' to '+cj.count+' '+d.market+' buyers?\n\nText + email will send to every one of them.')) return;
+    var b=await fetch(FN,{method:'POST',headers:HD,body:JSON.stringify({action:'blast',market:d.market,text:blastText(d)})});
+    var bj=await b.json();
+    if(bj.error){ alert('Blast failed: '+bj.error); return; }
+    alert('🚀 Blast away: '+bj.sent+' '+d.market+' buyers queued'+(bj.failed?(' ('+bj.failed+' failed)'):'')+'. Counting is automatic.');
+  }catch(e){ alert('Blast error: '+e); }
+}
 var SOP_HOW = {
  wb:'Pull info in this order: <b>1)</b> the signed contract (address, prices) <b>2)</b> the acq rep\'s notes in the CRM <b>3)</b> verbal convo with the acq rep. Write on the office whiteboard: property address, seller name, contracted price, <b>projected sell price (Pierce)</b>, lead source, and circle <b>CASH</b> or <b>NOVATION</b>. Done = every slot filled, nothing blank.', notes:'Open the deal\'s <b>GHL opportunity → Notes</b>. Know cold: location, price, closing timeline + inspection period, repairs required, occupancy/access situation, cash or novation — and the seller\'s motivation. Anything missing = your first question for the acq rep.',
  acq:'Whatever channel is fastest — call, text, or desk-side. Ask the exact question: <i>"Is there anything important I should know about the seller before I reach out?"</i> Walk away knowing: anything the notes left out, the seller\'s personality, and anything promised that ISN\'T in writing.', welcome:'<b>First decide the path:</b> Good deal → schedule Investor Bootz for professional photos. Unsure it\'s a deal → request seller photos (don\'t waste money on Bootz).<br><br><b>Seller photo email template:</b><br><i>Good afternoon — Please know that our team will do our very best to take care of you! Should you have any questions or concerns, contact me any time via email or phone at 469-518-3652. We kindly ask that you take the following photos and send them within 24 hours. Please take WIDE ANGLE photos — step back to a doorway or corner so we see as much as possible. If you can\'t take them, let me know and I\'ll arrange it — just tell me how we can access the property.<br>• 3 photos of the house from the street<br>• 1 photo of each side of the house<br>• 1 photo of the outdoor AC unit<br>• 4 photos of the kitchen<br>• 2 photos of all bathrooms — one of the tub/shower itself<br>• 2 photos of every bedroom<br>• 1 photo of each hallway<br>• 2 photos of any remaining room<br>• 1 photo of AC return closet<br>• Photos of any troubled areas / items needing repair<br>Email the pictures back to this email. We sincerely appreciate your help in making this a timely purchase of your home. Kind Regards, Nic</i>',
@@ -1273,6 +1291,7 @@ function openDealForm(existing){
   +'<label>Seller name</label><input id="f_seller" value="'+esc(d.seller_name||'')+'">'
   +'<label>Address</label><input id="f_addr" value="'+esc(d.address||'')+'">'
   +'<label>Investor base link (for auto share-tracking)</label><input id="f_invlink" placeholder="https://…" value="'+esc(d.invbase_link||'')+'">'
+  +'<label>Market (must match GHL buyer tag, e.g. memphis / toledo)</label><input id="f_market" placeholder="memphis" value="'+esc(d.market||'')+'">'
   +'<div class="half"><div><label>Marketing type</label><select id="f_mkt">'+['','Flip','Rental','Flip or Rental'].map(function(o){return '<option'+((d.market_type||'')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div><div><label>ARV</label><input type="number" id="f_arv" value="'+(d.arv||'')+'"></div></div>'
   +'<div class="half"><div><label>Beds</label><input type="number" id="f_beds" value="'+(d.beds||'')+'"></div><div><label>Baths</label><input type="number" id="f_baths" value="'+(d.baths||'')+'"></div></div>'
   +'<div class="half"><div><label>Sqft</label><input type="number" id="f_sqft" value="'+(d.sqft||'')+'"></div><div><label>Est. rent/mo (rentals)</label><input type="number" id="f_rent" value="'+(d.est_rent||'')+'"></div></div>'
@@ -1293,6 +1312,7 @@ async function saveDeal(id){
   var row={seller_name:document.getElementById('f_seller').value||null,address:document.getElementById('f_addr').value,
     invbase_link:document.getElementById('f_invlink').value||null,
     market_type:document.getElementById('f_mkt').value||null,
+    market:(document.getElementById('f_market').value||'').toLowerCase().trim()||null,
     arv:Number(document.getElementById('f_arv').value)||null,
     beds:Number(document.getElementById('f_beds').value)||null,
     baths:Number(document.getElementById('f_baths').value)||null,
@@ -1333,7 +1353,7 @@ function openDeal(id){
     D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}}),
     D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
-  var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button></h2>'
+  var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button class="act" onclick="copyBlastTag(\''+d.id+'\')">📋 Copy blast tag</button> <button class="act" style="border-color:var(--gold)" onclick="rocketBlast(\''+d.id+'\')">🚀 Blast to '+esc(d.market||'?')+' buyers</button></h2>'
   +'<div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid '+(d.invbase_link?'var(--line)':'var(--red)')+';border-radius:8px;padding:7px 10px;margin-bottom:8px">'
     +'<span style="font-size:11px;white-space:nowrap">🔗 <b>Investor base link</b><br><span style="font-size:9px;color:var(--mut)">auto share-tracker</span></span>'
     +'<input id="dl_inv_'+d.id+'" value="'+esc(d.invbase_link||'')+'" placeholder="paste link — texts containing it auto-count as shares" style="flex:1;font-size:11px;margin:0">'
