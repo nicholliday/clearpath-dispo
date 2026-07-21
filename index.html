@@ -1314,7 +1314,7 @@ function openLog(kind,dealId){
     h='<h2>Fall-through autopsy</h2>'
     +'<p style="font-size:12px;color:var(--mut);margin-bottom:10px">'+dealLabel(dd)+' — why did this deal die?</p>'
     +'<label>Reason</label><select id="la_reason">'
-    +['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Other'].map(function(o){return '<option'+(dd.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')
+    +['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Dispo rep issue','Other'].map(function(o){return '<option'+(dd.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')
     +'</select>'
     +'<label>Notes (optional)</label><textarea id="la_notes" rows="2">'+esc(dd.death_notes||'')+'</textarea>'
     +'<button class="btn p big" onclick="saveAutopsy(\''+dealId+'\')">Save autopsy</button>';
@@ -1396,7 +1396,7 @@ function openDealForm(existing){
   +'<div class="half"><div><label>Occupancy</label><select id="f_occ">'+['','Vacant','Tenant','Owner Occupied'].map(function(o){return '<option'+(d.occupancy===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div><div></div></div>'
   +'<label>Stage</label><select id="f_stage" onchange="var w=document.getElementById(\'f_deathwrap\');w.style.display=[\'Cancelled\',\'Ghosted\',\'Ghosted w/ Memorandum\'].indexOf(this.value)>=0?\'block\':\'none\'">'+STAGES.map(function(s){return '<option'+(d.stage===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
   +'<div id="f_deathwrap" style="display:'+(['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(d.stage)>=0?'block':'none')+';background:var(--card2);border:1px solid var(--red);border-radius:10px;padding:10px 12px;margin:6px 0 4px">'
-    +'<label style="color:var(--red)">💀 Why did this deal die? (required)</label><select id="f_dreason"><option value=""></option>'+['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Other'].map(function(o){return '<option'+(d.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select>'
+    +'<label style="color:var(--red)">💀 Why did this deal die? (required)</label><select id="f_dreason"><option value=""></option>'+['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Dispo rep issue','Other'].map(function(o){return '<option'+(d.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select>'
     +'<label>Notes (optional)</label><textarea id="f_dnotes" rows="2">'+esc(d.death_notes||'')+'</textarea>'
   +'</div>'
   +'<div class="half"><div><label>Inspection period ends</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
