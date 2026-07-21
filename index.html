@@ -193,10 +193,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">✅ Closed deals</div>
     <div id="dealsClosed"></div>
 
-    <div class="sec">💀 Dead deals <small>(cancelled & ghosted)</small></div>
-    <div id="dealsDead"></div>
-
-    <div class="sec">💀 Graveyard <small>(cancelled & ghosted contracts)</small></div>
+    <div class="sec">💀 Graveyard <small>(cancelled & ghosted contracts — tap to open)</small></div>
     <div class="card" id="graveyard"></div>
 
     <div class="sec">Fee accuracy <small>— projected vs actual at close</small></div>
@@ -866,7 +863,7 @@ function render(){
   });
   document.getElementById('dealsOpen').innerHTML=dhtml||'<p style="font-size:12px;color:var(--mut)">Tap + New deal to add your first contract.</p>';
   document.getElementById('dealsClosed').innerHTML=D.deals.filter(function(d){return d.stage==='Closed'}).map(function(d){return dealCard(d,true)}).join('')||'<p style="font-size:12px;color:var(--mut)">None yet.</p>';
-  document.getElementById('dealsDead').innerHTML=D.deals.filter(function(d){return DEAD.indexOf(d.stage)>=0&&d.stage!=='Closed'}).map(function(d){return dealCard(d,true)}).join('')||'<p style="font-size:12px;color:var(--mut)">None yet.</p>';
+
 
   // OPERATOR VIEW
   var dotColors={'Our Listing Agents':'#A78BFA','Waiting On Photos':'#F59E0B','Photos Received (Live)':'#60A5FA','Listed on MLS':'#2DD4BF','EMD In':'#D4AF37','Closed':'#10B981','Ghosted':'#EF4444','Ghosted w/ Memorandum':'#EF4444'};
