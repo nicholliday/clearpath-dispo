@@ -951,6 +951,7 @@ function render(){
   })();
 
   // Month pace
+  var mStart2=t.slice(0,7)+'-01';
   var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||'')>=mStart2)});
   var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
   var at=D.targets.assigned_monthly||10, rt=D.targets.revenue_monthly||100000;
