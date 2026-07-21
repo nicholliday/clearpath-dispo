@@ -1393,7 +1393,11 @@ function openDealForm(existing){
   +'<div class="half"><div><label>Contract price</label><input type="number" id="f_cp" value="'+(d.contract_price||'')+'"></div><div><label>Asking price</label><input type="number" id="f_ask" value="'+(d.start_ask||'')+'"></div></div>'
   +'<div class="half"><div><label>Fee target</label><input type="number" id="f_fee" value="'+(d.fee_target||'')+'"></div><div><label>Deal type</label><select id="f_type">'+['Cash','Novation','Double Close'].map(function(o){return '<option'+((d.deal_type||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
   +'<div class="half"><div><label>Occupancy</label><select id="f_occ">'+['','Vacant','Tenant','Owner Occupied'].map(function(o){return '<option'+(d.occupancy===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div><div></div></div>'
-  +'<label>Stage</label><select id="f_stage">'+STAGES.map(function(s){return '<option'+(d.stage===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
+  +'<label>Stage</label><select id="f_stage" onchange="var w=document.getElementById(\'f_deathwrap\');w.style.display=[\'Cancelled\',\'Ghosted\',\'Ghosted w/ Memorandum\'].indexOf(this.value)>=0?\'block\':\'none\'">'+STAGES.map(function(s){return '<option'+(d.stage===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
+  +'<div id="f_deathwrap" style="display:'+(['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(d.stage)>=0?'block':'none')+';background:var(--card2);border:1px solid var(--red);border-radius:10px;padding:10px 12px;margin:6px 0 4px">'
+    +'<label style="color:var(--red)">💀 Why did this deal die? (required)</label><select id="f_dreason"><option value=""></option>'+['Seller ghosted','Seller backed out','Buyer flaked / EMD not received','Inspection blew it up','Priced wrong / no buyer demand','Title issue','Other'].map(function(o){return '<option'+(d.death_reason===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select>'
+    +'<label>Notes (optional)</label><textarea id="f_dnotes" rows="2">'+esc(d.death_notes||'')+'</textarea>'
+  +'</div>'
   +'<div class="half"><div><label>Inspection period ends</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
   +'<div id="f_revwrap" style="display:'+(d.stage==='Closed'?'block':'none')+'"><label>Revenue closed ($)</label><input type="number" id="f_rev" value="'+(d.revenue_closed||'')+'"></div>'
   +'<label>Notes</label><textarea id="f_notes" rows="2">'+esc(d.notes||'')+'</textarea>'
@@ -1423,13 +1427,14 @@ async function saveDeal(id){
     revenue_closed:Number(document.getElementById('f_rev')?document.getElementById('f_rev').value:0)||null,
     notes:document.getElementById('f_notes').value};
   if(!row.address)return alert('Address required');
+  if(['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(row.stage)>=0){
+    var dr=document.getElementById('f_dreason').value;
+    if(!dr) return alert('Pick the reason this deal died — required before saving a cancelled/ghosted deal.');
+    row.death_reason=dr; row.death_notes=document.getElementById('f_dnotes').value||null;
+  }
   var r = id? await db.from('deals').update(row).eq('id',id) : await db.from('deals').insert(row);
   if(r.error)return alert(r.error.message);
-  var prev = id ? D.deals.find(function(x){return x.id===id}) : null;
-  var deadNow = ['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(row.stage)>=0;
-  var needAutopsy = deadNow && (!prev || !prev.death_reason);
-  closeModal(); await loadAll();
-  if(needAutopsy && id){ openLog('autopsy', id); }
+  closeModal(); loadAll();
 }
 async function delDeal(id){
   if(!confirm('Delete this deal and all its history?'))return;
