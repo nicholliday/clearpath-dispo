@@ -1425,7 +1425,11 @@ async function saveDeal(id){
   if(!row.address)return alert('Address required');
   var r = id? await db.from('deals').update(row).eq('id',id) : await db.from('deals').insert(row);
   if(r.error)return alert(r.error.message);
-  closeModal(); loadAll();
+  var prev = id ? D.deals.find(function(x){return x.id===id}) : null;
+  var deadNow = ['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(row.stage)>=0;
+  var needAutopsy = deadNow && (!prev || !prev.death_reason);
+  closeModal(); await loadAll();
+  if(needAutopsy && id){ openLog('autopsy', id); }
 }
 async function delDeal(id){
   if(!confirm('Delete this deal and all its history?'))return;
