@@ -795,18 +795,19 @@ function dealCard(d,compact){
         +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">SOP '+pr.done+'/'+pr.total+'</span>'
         +'<div class="sbar"><i style="width:'+pct+'%;background:'+(pct>=100?'var(--green)':pct>=50?'var(--blue)':'var(--red)')+'"></i></div>'
         +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(pct>=100?'var(--green)':pct>=50?'var(--text)':'var(--red)')+'">'+pct+'%'+(pct>=100?' ✓':'')+'</span></div>'})()
-    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
+    +(d.deal_type==='Novation'?'':'<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
     +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">Buyers '+r+'/'+min+'</span>'
     +'<div class="sbar"><i style="width:'+pct+'%;background:'+(r>=min?'var(--green)':'var(--gold)')+'"></i></div>'
-    +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(r>=min?'var(--green)':'var(--mut)')+'">'+Math.min(100,pct)+'%'+(r>=min?' ✓':'')+'</span></div>'
+    +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(r>=min?'var(--green)':'var(--mut)')+'">'+Math.min(100,pct)+'%'+(r>=min?' ✓':'')+'</span></div>')
     +(function(){
+      var isNov=d.deal_type==='Novation';
       var wt=D.showings.filter(function(x){return x.deal_id===d.id}).length, wtT=5;
-      var ofc=D.offers.filter(function(x){return x.deal_id===d.id}).length, ofT=5;
+      var ofc=D.offers.filter(function(x){return x.deal_id===d.id}).length, ofT=isNov?3:5;
       var wp=Math.min(100,Math.round(wt/wtT*100)), op=Math.min(100,Math.round(ofc/ofT*100));
-      return '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
+      return (isNov?'':'<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
         +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">Walks '+wt+'/'+wtT+'</span>'
         +'<div class="sbar"><i style="width:'+wp+'%;background:'+(wt>=wtT?'var(--green)':'var(--blue)')+'"></i></div>'
-        +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(wt>=wtT?'var(--green)':'var(--mut)')+'">'+wp+'%'+(wt>=wtT?' ✓':'')+'</span></div>'
+        +'<span style="font-size:10px;font-weight:700;white-space:nowrap;color:'+(wt>=wtT?'var(--green)':'var(--mut)')+'">'+wp+'%'+(wt>=wtT?' ✓':'')+'</span></div>')
         +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
         +'<span style="font-size:10px;color:var(--mut);white-space:nowrap;width:60px">Offers '+ofc+'/'+ofT+'</span>'
         +'<div class="sbar"><i style="width:'+op+'%;background:'+(ofc>=ofT?'var(--green)':'var(--amber)')+'"></i></div>'
