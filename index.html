@@ -77,8 +77,8 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .gate{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:2rem}
 .err{background:#7F1D1D;color:#FECACA;padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px;display:none}
 .loading{text-align:center;color:var(--mut);padding:2rem;font-size:13px}
-.blk{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 15px;margin-bottom:18px}
-.blk .bh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.blk{background:none;border:none;padding:0;margin-bottom:20px}
+.blk .bh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding:0 2px}
 .blk .bt{font-size:13px;font-weight:700}
 .blk .btime{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:0.04em}
 .task{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
@@ -88,7 +88,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .task.done .tl2{text-decoration:line-through;color:var(--mut)}
 .task .tl2{flex:1;cursor:pointer}
 .task .act{font-size:10px;padding:3px 8px;border-radius:6px;background:var(--card2);border:1px solid var(--line);color:var(--text);cursor:pointer;white-space:nowrap}
-.prow{padding:14px 0;border-top:1px solid var(--line)}
+.prow{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:12px}
 .prow:first-of-type{border-top:none}
 .prow .cb{width:20px;height:20px;min-width:20px;border:2px solid var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;cursor:pointer}
 .prow.pdone .cb{background:var(--blue)}
