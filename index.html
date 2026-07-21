@@ -156,6 +156,9 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Dispo funnel <small>(last 90 days — deal conversions + effort per deal)</small></div>
     <div class="card" id="funnel"></div>
 
+    <div class="sec">Winning buyer sources <small>(where assigned/closed deals' top offers came from)</small></div>
+    <div class="card" id="srcBreak"></div>
+
     <div class="sec">Month pace</div>
     <div class="card" id="pace"></div>
   </div>
@@ -952,6 +955,27 @@ function render(){
 
   // Month pace
   var mStart2=t.slice(0,7)+'-01';
+  (function(){
+    var el=document.getElementById('srcBreak'); if(!el) return;
+    var wins={}, bids={};
+    D.offers.forEach(function(o){ var s=o.buyer_source||'Untracked'; bids[s]=(bids[s]||0)+1; });
+    D.deals.filter(function(d){return d.stage==='Closed'||d.stage==='EMD In'}).forEach(function(d){
+      var offs=D.offers.filter(function(o){return o.deal_id===d.id});
+      if(!offs.length) return;
+      var top=offs.sort(function(a,b){return (b.amount||0)-(a.amount||0)})[0];
+      var s=top.buyer_source||'Untracked';
+      if(!wins[s]) wins[s]={n:0,rev:0};
+      wins[s].n++; wins[s].rev+=Number(d.revenue_closed||d.fee_target)||0;
+    });
+    var h='';
+    var ks=Object.keys(wins).sort(function(a,b){return wins[b].rev-wins[a].rev});
+    if(ks.length){ h+='<div style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px">Winning buyer came from:</div>';
+      ks.forEach(function(k){ h+='<div class="row" style="font-size:12px;margin-bottom:4px"><span style="color:var(--mut)">'+k+'</span><b>'+wins[k].n+' deal'+(wins[k].n>1?'s':'')+' · '+fmt$(wins[k].rev)+'</b></div>'; }); }
+    var bk=Object.keys(bids).sort(function(a,b){return bids[b]-bids[a]});
+    if(bk.length){ h+='<div style="font-size:11px;color:var(--mut);font-weight:700;margin:8px 0 4px">All offers by source:</div>';
+      bk.forEach(function(k){ h+='<div class="row" style="font-size:12px;margin-bottom:3px"><span style="color:var(--mut)">'+k+'</span><b>'+bids[k]+'</b></div>'; }); }
+    el.innerHTML = h || '<div style="font-size:12px;color:var(--mut)">Fills in as offers get logged with a source.</div>';
+  })();
   var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||'')>=mStart2)});
   var rev=closed.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
   var at=D.targets.assigned_monthly||10, rt=D.targets.revenue_monthly||100000;
@@ -1262,6 +1286,7 @@ function openLog(kind,dealId){
     +'<label>Deal</label><select id="lo_deal">'+dealOptions(dealId)+'</select>'
     +'<label>Buyer</label><input id="lo_buyer" placeholder="Buyer name">'
     +'<label>Amount</label><input type="number" id="lo_amt" placeholder="192000">'
+    +'<label>Buyer source</label><select id="lo_src">'+['','Our buyer list','Zillow landlords','Agent comps','Investor base','MLS listing','FB group','Other'].map(function(o){return '<option>'+o+'</option>'}).join('')+'</select>'
     +'<button class="btn p big" onclick="saveOffer()">Save offer received</button>';
   } else if(kind==='feedback'){
     h='<h2>Log buyer feedback</h2>'
@@ -1317,7 +1342,7 @@ async function saveShowing(){
   if(r.error)return alert(r.error.message); closeModal(); loadAll();
 }
 async function saveOffer(){
-  var r=await db.from('offers').insert({deal_id:document.getElementById('lo_deal').value,offered_on:today(),buyer:document.getElementById('lo_buyer').value,amount:Number(document.getElementById('lo_amt').value)||0,status:'New'});
+  var r=await db.from('offers').insert({deal_id:document.getElementById('lo_deal').value,offered_on:today(),buyer:document.getElementById('lo_buyer').value,amount:Number(document.getElementById('lo_amt').value)||0,status:'New',buyer_source:document.getElementById('lo_src').value||null});
   if(r.error)return alert(r.error.message); closeModal(); loadAll();
 }
 async function saveAutopsy(id){
