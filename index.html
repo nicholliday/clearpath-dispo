@@ -77,7 +77,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .gate{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:2rem}
 .err{background:#7F1D1D;color:#FECACA;padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px;display:none}
 .loading{text-align:center;color:var(--mut);padding:2rem;font-size:13px}
-.blk{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px}
+.blk{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 15px;margin-bottom:18px}
 .blk .bh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
 .blk .bt{font-size:13px;font-weight:700}
 .blk .btime{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:0.04em}
@@ -88,7 +88,7 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .task.done .tl2{text-decoration:line-through;color:var(--mut)}
 .task .tl2{flex:1;cursor:pointer}
 .task .act{font-size:10px;padding:3px 8px;border-radius:6px;background:var(--card2);border:1px solid var(--line);color:var(--text);cursor:pointer;white-space:nowrap}
-.prow{padding:9px 0;border-top:1px solid var(--line)}
+.prow{padding:14px 0;border-top:1px solid var(--line)}
 .prow:first-of-type{border-top:none}
 .prow .cb{width:20px;height:20px;min-width:20px;border:2px solid var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;cursor:pointer}
 .prow.pdone .cb{background:var(--blue)}
@@ -153,8 +153,8 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">SOP pacing <small>— is every deal where it should be?</small></div>
     <div class="card" id="discipline"></div>
 
-    <div class="sec">Leak finder <small>(last 30 days)</small></div>
-    <div class="card" id="leaks"></div>
+    <div class="sec">Dispo funnel <small>(last 90 days — deal conversions + effort per deal)</small></div>
+    <div class="card" id="funnel"></div>
 
     <div class="sec">Month pace</div>
     <div class="card" id="pace"></div>
@@ -886,13 +886,48 @@ function render(){
           +'<span>'+dealLabel(x.d)+'</span><span style="color:var(--red);white-space:nowrap">'+x.n+' items behind</span></div>';
       }).join(''):'<div style="font-size:12px;color:var(--green)">Every deal is pacing. ✓</div>'));
 
-  // Leak finder (last 30 days)  // Leak finder (last 30 days)
-  var m30=daysAgo(29);
-  var dl=sumFeed('dial',m30,t), cv=sumFeed('convo',m30,t), rc=sumReached(m30,t), sh=countRows(D.showings,'shown_on',m30,t), of=countRows(D.offers,'offered_on',m30,t);
-  document.getElementById('leaks').innerHTML=
-    '<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Convos per 100 dials</span><b>'+(dl?Math.round(cv/dl*1000)/10:'—')+'</b></div>'
-    +'<div class="row" style="font-size:12px;margin-bottom:6px"><span style="color:var(--mut)">Walkthroughs per 100 buyers sent</span><b>'+(rc?Math.round(sh/rc*1000)/10:'—')+'</b></div>'
-    +'<div class="row" style="font-size:12px"><span style="color:var(--mut)">Offers received per 10 walkthroughs</span><b>'+(sh?Math.round(of/sh*100)/10:'—')+'</b></div>';
+  // Dispo funnel (last 90 days)
+  (function(){
+    var w0=daysAgo(89);
+    var pool=D.deals.filter(function(d){ return (d.contract_date||'')>=w0 || (histDateG(d.id,'Photos Received (Live)')||'')>=w0 || (histDateG(d.id,'EMD In')||'')>=w0 || (histDateG(d.id,'Closed')||'')>=w0; });
+    var n=pool.length;
+    var live=pool.filter(function(d){ var x=histDateG(d.id,'Photos Received (Live)'); return x || ['Photos Received (Live)','Listed on MLS','EMD In','Closed'].indexOf(d.stage)>=0; });
+    var off5=pool.filter(function(d){ return D.offers.filter(function(o){return o.deal_id===d.id}).length>=5; });
+    var asg=pool.filter(function(d){ return histDateG(d.id,'EMD In') || ['EMD In','Closed'].indexOf(d.stage)>=0; });
+    var cls=pool.filter(function(d){ return d.stage==='Closed'; });
+    var rev90=cls.reduce(function(a,d){return a+(Number(d.revenue_closed)||0)},0);
+
+    var dl=sumFeed('dial',w0,t), cv=sumFeed('convo',w0,t), rc=sumReached(w0,t), sh=countRows(D.showings,'shown_on',w0,t), ofl=countRows(D.offers,'offered_on',w0,t);
+    var per=function(x){ return n?Math.round(x/n*10)/10:0; };
+
+    var stages=[
+      {l:'Contracts in', v:n, note:per(dl)+' dials + '+per(cv)+' convos per deal', bench:null},
+      {l:'Live (photos)', v:live.length, note:per(rc)+' buyers reached per deal (goal 100)', bench:0.7},
+      {l:'5+ offers', v:off5.length, note:per(sh)+' walkthroughs · '+per(ofl)+' offers per deal (goal 5)', bench:0.5},
+      {l:'Assigned (EMD)', v:asg.length, note:'best & highest locked, EMD wired', bench:0.6},
+      {l:'Closed', v:cls.length, note:fmt$(rev90)+' revenue closed', bench:0.8}
+    ];
+
+    var worst=-1, worstRate=2;
+    for(var i=1;i<stages.length;i++){
+      if(stages[i-1].v>0){ var r=stages[i].v/stages[i-1].v; stages[i].rate=r;
+        var ref=stages[i].bench||0.5; if(r/ref<worstRate){ worstRate=r/ref; worst=i; } }
+    }
+
+    var maxW=100, minW=32, h='';
+    if(!n){ h='<div style="font-size:12px;color:var(--mut)">No deals in the last 90 days yet — the funnel fills as contracts flow.</div>'; }
+    else stages.forEach(function(s,i){
+      var wpct=maxW-((maxW-minW)/(stages.length-1))*i;
+      var isW=(i===worst);
+      if(i>0){ var rp=stages[i-1].v?Math.round(stages[i].v/stages[i-1].v*100):0;
+        h+='<div style="text-align:center;font-size:11px;padding:3px 0;color:'+(isW?'var(--red)':'var(--mut)')+'">'+(isW?'⚠️ ':'')+'↓ '+rp+'%'+(s.bench?' <span style="opacity:.7">(aim '+Math.round(s.bench*100)+'%+)</span>':'')+'</div>'; }
+      h+='<div style="margin:0 auto;width:'+wpct+'%;background:'+(isW?'rgba(239,68,68,.14)':'var(--card2)')+';border:1px solid '+(isW?'var(--red)':(i===stages.length-1?'var(--gold)':'var(--line)'))+';border-radius:10px;padding:8px 10px;text-align:center">'
+        +'<div style="font-size:12px"><b>'+s.l+'</b> — <b style="color:'+(i===stages.length-1?'var(--gold)':'var(--text)')+'">'+s.v+'</b></div>'
+        +'<div style="font-size:10px;color:var(--mut);margin-top:2px">'+s.note+'</div></div>';
+    });
+    if(n&&worst>0) h+='<div style="font-size:11px;color:var(--red);margin-top:10px;text-align:center">Biggest leak: '+stages[worst-1].l+' → '+stages[worst].l+'</div>';
+    document.getElementById('funnel').innerHTML=h;
+  })();
 
   // Month pace
   var closed=D.deals.filter(function(d){return d.stage==='Closed'&&((d.closing_deadline||'')>=mStart2)});
