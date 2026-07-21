@@ -402,7 +402,7 @@ async function rocketBlast(id){
     var b=await fetch(FN,{method:'POST',headers:HD,body:JSON.stringify({action:'blast',market:d.market,text:blastText(d)})});
     var bj=await b.json();
     if(bj.error){ alert('Blast failed: '+bj.error); return; }
-    alert('🚀 Blast away: '+bj.sent+' '+d.market+' buyers queued'+(bj.failed?(' ('+bj.failed+' failed)'):'')+'. Counting is automatic.');
+    alert('🚀 Blast away: '+bj.sent+' '+d.market+' buyers queued'+(bj.failed?(' ('+bj.failed+' failed)'):'')+(bj.err?('\n\nGHL error: '+bj.err):'')+'\nCounting is automatic.');
   }catch(e){ alert('Blast error: '+e); }
 }
 var SOP_HOW = {
