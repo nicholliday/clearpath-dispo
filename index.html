@@ -192,6 +192,9 @@ label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
     <div class="sec">Fall-through reasons <small>(all time)</small></div>
     <div class="card" id="autopsyStats"></div>
 
+    <div class="sec">💀 Graveyard <small>(cancelled & ghosted contracts)</small></div>
+    <div class="card" id="graveyard"></div>
+
     <div class="sec">Fee accuracy <small>— projected vs actual at close</small></div>
     <div class="card" id="feeAcc"></div>
 
@@ -240,9 +243,9 @@ var PASSCODE = 'clearpath';   // <-- CHANGE THIS before sharing with your rep
 // ==========================================
 var db = supabase.createClient(SUPA_URL, SUPA_KEY);
 var D = { deals:[], sends:[], showings:[], offers:[], drops:[], feed:[], targets:{} };
-var STAGES = ['Our Listing Agents','Waiting On Photos','Photos Received (Live)','Listed on MLS','EMD In','Closed','Ghosted','Ghosted w/ Memorandum'];
+var STAGES = ['Waiting On Photos','Photos Received (Live)','Listed on MLS','EMD In','Closed','Cancelled','Ghosted','Ghosted w/ Memorandum'];
 var MKT = STAGES.slice(0,4);
-var DEAD = ['Closed','Ghosted','Ghosted w/ Memorandum'];
+var DEAD = ['Closed','Cancelled','Ghosted','Ghosted w/ Memorandum'];
 var TKEYS = [['dials_daily','Dials / day'],['convos_daily','Convos / day'],['reached_daily','Buyers reached / day'],['showings_daily','Showings / day'],['offers_daily','Offers / day'],['buyers_added_daily','Buyers added / day'],['min_buyers_per_deal','Min buyers per deal'],['assigned_monthly','Assignments / month'],['revenue_monthly','Revenue / month ($)']];
 
 function today(){ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()); }
@@ -1163,7 +1166,7 @@ function render(){
     '<div style="font-size:12px;color:var(--green)">Nothing aging — pipeline is moving. ✓</div>';
 
   // Data hygiene prompts
-  var deadNoReason=D.deals.filter(function(d){return d.stage.indexOf('Ghosted')>=0&&!d.death_reason});
+  var deadNoReason=D.deals.filter(function(d){return (d.stage.indexOf('Ghosted')>=0||d.stage==='Cancelled')&&!d.death_reason});
   var closedNoFee=D.deals.filter(function(d){return d.stage==='Closed'&&!d.revenue_closed});
   var hyg='';
   deadNoReason.forEach(function(d){
@@ -1184,6 +1187,15 @@ function render(){
       return '<div class="scoreline"><span class="lbl" style="width:180px">'+esc(k)+'</span><div class="sbar"><i style="width:'+pct+'%;background:var(--red)"></i></div><span class="num">'+reasons[k]+' ('+pct+'%)</span></div>';
     }).join(''):
     '<div style="font-size:12px;color:var(--mut)">No autopsies yet — when a deal ghosts, tag the reason above and patterns build here.</div>';
+
+  var grave=D.deals.filter(function(d){return DEAD.indexOf(d.stage)>=0&&d.stage!=='Closed'});
+  document.getElementById('graveyard').innerHTML = grave.length ?
+    grave.map(function(d){
+      return '<div onclick="openDeal(\''+d.id+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:12px">'
+        +'<span>💀 '+dealLabel(d)+' <span style="color:var(--mut);font-size:10px">'+esc(d.stage)+'</span></span>'
+        +'<span style="color:var(--mut);text-align:right">'+esc(d.death_reason||'no reason tagged ⚠️')+(d.fee_target?' · '+fmt$(d.fee_target)+' lost':'')+'</span></div>';
+    }).join('')+'<style>#graveyard > div:last-child{border-bottom:none}</style>'
+    : '<div style="font-size:12px;color:var(--mut)">No cancelled or ghosted contracts. 🎉</div>';
 
   var fa=D.deals.filter(function(d){return d.stage==='Closed'&&d.revenue_closed&&d.fee_target});
   if(fa.length){
@@ -1431,9 +1443,7 @@ function openDeal(id){
     autoEvs,
     D.sends.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.sent_on,t:'📤 Sent to '+(x.buyers_reached||0)+' buyers ('+x.channel+')'+(x.list_name?' — '+esc(x.list_name):'')}}),
     D.showings.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.shown_on,t:'🚪 Showing — '+esc(x.buyer||'')+' ('+esc(x.outcome||'')+')'}}),
-    D.offers.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.offered_on,t:'💰 Offer '+fmt$(x.amount)+' — '+esc(x.buyer||'')+' ['+esc(x.status)+']'}}),
-    D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}}),
-    D.fb.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.fb_on,t:'💬 '+esc(x.buyer||'Buyer')+' — '+esc(x.temperature||'')+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' · '+esc(x.notes):'')}})
+    D.drops.filter(function(x){return x.deal_id===id}).map(function(x){return {d:x.dropped_on,t:'📉 Price '+fmt$(x.old_price)+' → '+fmt$(x.new_price)+(x.reason?' — '+esc(x.reason):'')}})
   ).sort(function(a,b){return b.d<a.d?-1:1});
   var h='<h2>'+dealLabel(d)+' <span style="font-size:11px;color:var(--mut)">'+dealCode(d)+'</span> <button onclick="copyBlastTag(\''+d.id+'\')" style="background:linear-gradient(135deg,#D4AF37,#E8C55A);color:#101828;border:none;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;vertical-align:middle;box-shadow:0 3px 10px rgba(212,175,55,.35)">📋 Copy blast tag</button> <button onclick="rocketBlast(\''+d.id+'\')" style="background:linear-gradient(135deg,#D4AF37,#E8C55A);color:#101828;border:none;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;vertical-align:middle;box-shadow:0 3px 10px rgba(212,175,55,.35)">🚀 Blast to '+esc(d.market||'______')+' buyers</button></h2>'
   +'<div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid '+(d.invbase_link?'var(--line)':'var(--red)')+';border-radius:8px;padding:7px 10px;margin-bottom:8px">'
@@ -1458,6 +1468,21 @@ function openDeal(id){
     tpl.forEach(function(s){
       var secDone=s.items.every(function(it){return checks[it[0]]});
       h+='<div style="font-size:12px;font-weight:700;color:'+(secDone?'var(--green)':'var(--mut)')+';margin:10px 0 5px">'+(secDone?'✓ ':'')+s.sec+'</div>';
+  +(function(){
+    var offs=D.offers.filter(function(x){return x.deal_id===id}).sort(function(a,b){return (b.amount||0)-(a.amount||0)});
+    var fbs=D.fb.filter(function(x){return x.deal_id===id}).sort(function(a,b){return b.fb_on<a.fb_on?-1:1});
+    if(!offs.length&&!fbs.length) return '';
+    var s='<div class="sec" style="margin-top:2px">Offers & feedback</div><div style="background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px">';
+    if(offs.length){
+      s+='<div style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:5px">💰 Offers ('+offs.length+')</div>';
+      offs.forEach(function(x,i){ s+='<div style="font-size:12px;margin-bottom:4px">'+(i===0?'<b style="color:var(--gold)">'+fmt$(x.amount)+'</b>':'<b>'+fmt$(x.amount)+'</b>')+' — '+esc(x.buyer||'buyer')+(x.buyer_source?' <span style="color:var(--mut)">· '+esc(x.buyer_source)+'</span>':'')+' <span style="color:var(--mut)">· '+x.offered_on+'</span></div>'; });
+    }
+    if(fbs.length){
+      s+='<div style="font-size:11px;color:var(--mut);font-weight:700;margin:'+(offs.length?'10px':'0')+' 0 5px">🗣️ Feedback ('+fbs.length+')</div>';
+      fbs.forEach(function(x){ s+='<div style="font-size:12px;margin-bottom:4px">'+esc(x.buyer||'Buyer')+' — <b>'+esc(x.temperature||'')+'</b>'+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' <span style="color:var(--mut)">· '+esc(x.notes)+'</span>':'')+' <span style="color:var(--mut)">· '+x.fb_on+'</span></div>'; });
+    }
+    return s+'</div>';
+  })()
       h+='<div style="background:var(--card2);border-radius:8px;padding:6px 10px">';
       s.items.forEach(function(it){
         var dn=checks[it[0]];
