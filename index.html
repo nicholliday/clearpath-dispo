@@ -399,6 +399,33 @@ async function toggleSop(dealId,key){
 }
 
 function dealLabel(d){ return esc(d.address); }
+var HELP_TOPICS = [
+ {q:'🚀 How do I blast a deal to buyers?', a:'Open the deal → make sure <b>Details</b> (incl. Market) and the 🔗 investor base link are filled → tap <b>🚀 Blast to [market] buyers</b> → confirm the count. Text + email go to every buyer tagged with that market in GHL. Counting is automatic.'},
+ {q:'🔗 Where do I put the investor base link?', a:'Open the deal — the <b>🔗 Investor base link bar</b> is right at the top. Paste the viewdeal.co link → Save. This powers auto share-tracking: any text containing that link counts as a share on this deal.'},
+ {q:'📤 How do shares get counted?', a:'Automatically, three ways: the 🚀 blast, manual texts from GHL, and manual texts from OpenPhone — any outgoing text containing the deal\'s saved link counts. Same buyer + same deal = 1, ever. Never log GHL/OpenPhone sends manually. Use <b>+ Send</b> only for FB DMs / personal email shares.'},
+ {q:'📞 How do calls get counted?', a:'Automatically — Reid\'s calls from GHL or OpenPhone count as dials (2+ min = convo, seconds = talk time). Same number within 60 min counts once. Nothing to log.'},
+ {q:'💰 How do I log an offer?', a:'On the deal → <b>+ Offer</b> → buyer, amount, and <b>buyer source</b> (where this buyer came from — feeds the Winning Buyer Sources report on Operator). Offers show on the deal, count toward the 5-offer rule, and the highest is highlighted gold.'},
+ {q:'🚶 How do I log a walkthrough or feedback?', a:'On the deal: <b>+ Walkthrough</b> for showings, <b>💬 Feedback</b> for buyer reactions (temperature, would-pay, objections). Both appear on the deal and fill its progress bars.'},
+ {q:'📋 What are the bars on each deal card?', a:'<b>SOP</b> = checklist done · <b>Buyers /100</b> = unique buyers who\'ve seen this deal · <b>Walks /5</b> · <b>Offers /5</b> (novation & rural: /3). Gold = in progress, green ✓ = target hit.'},
+ {q:'🪜 How do stages work?', a:'Drag the opportunity card in the <b>GHL CONTRACTS pipeline</b> — that\'s the source of truth (the SOP checklist reminds you at each move). The app\'s Details → Stage dropdown is for corrections. Moving to <b>EMD In</b> = an Assignment on the scoreboard; <b>Closed</b> + revenue in "value" = Deals Closed + Revenue.'},
+ {q:'💀 How do I cancel a deal?', a:'Open the deal → <b>✏️ Details → Stage → Cancelled</b> → the red 💀 box appears → pick the reason (required) → Save. The deal moves to the <b>Insights</b> tab: Graveyard list + cancellation-reason percentages.'},
+ {q:'📚 Where are the how-to guides for each SOP step?', a:'Every checklist item with a gold <b>how ▸</b> expands into the full instructions — scripts, templates, and playbooks included. Tap the ▸, not the checkbox.'},
+ {q:'🔍 How do I find a deal fast?', a:'The search bar at the top of <b>Today</b> and <b>Deals</b> — type any part of the address, seller, or deal code. The full card appears with all its buttons.'},
+ {q:'📊 What do the four thermometers mean?', a:'On <b>Reps</b>: Opportunity $ (fees on the table) → SOP $ (revenue manufactured by executing checklists, weighted) → KPI $ (activity vs targets as dollars) → Revenue Closed (what actually paid). Definitions are written under each tube.'},
+ {q:'🔻 What is the Dispo funnel?', a:'On <b>Operator</b>: Contracts → Live → 5+ offers → Assigned → Closed over 90 days, with conversion % at each step. The worst leak turns red with ⚠️ — that\'s where deals are dying.'},
+ {q:'✍️ Where do I fill in deal info (beds, ARV, market…)?', a:'Open the deal → <b>✏️ Details</b>. Marketing type, beds/baths, sqft, ARV, rent, Market (must match the GHL buyer tag), prices, dates. These build the blast text automatically — empty fields = weaker blast.'},
+ {q:'🗓️ Do the KPI numbers reset?', a:'Automatically: Today resets daily (Central time), Month on the 1st, Quarter and Year on calendar boundaries. Week = rolling 7 days. All-time history keeps every month\'s final numbers forever.'}
+];
+function openHelp(){
+  var h='<h2>❓ Help — how do I…</h2><div style="font-size:11px;color:var(--mut);margin-bottom:10px">Tap a question. For deal-process training, use the gold <b>how ▸</b> links inside each deal\'s SOP checklist.</div>';
+  HELP_TOPICS.forEach(function(t,i){
+    h+='<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">'
+      +'<div onclick="var b=document.getElementById(\'hlp'+i+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'" style="padding:10px 12px;cursor:pointer;font-size:13px;font-weight:600">'+t.q+'</div>'
+      +'<div id="hlp'+i+'" style="display:none;padding:0 12px 12px;font-size:12px;color:var(--text);line-height:1.6">'+t.a+'</div></div>';
+  });
+  openModal(h);
+}
+
 async function rocketBlast(id){
   var d=D.deals.find(function(x){return x.id===id}); if(!d) return;
   if(!d.market){ alert('Set the Market field first (✏️ Details) — must match the GHL buyer tag, e.g. memphis.'); return; }
@@ -1535,5 +1562,6 @@ async function saveTargets(){
 
 if(localStorage.getItem('cp_pass')==='1') loadAll();
 </script>
+<div onclick="openHelp()" style="position:fixed;right:14px;bottom:74px;z-index:900;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#D4AF37,#E8C55A);color:#101828;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(212,175,55,.45)">?</div>
 </body>
 </html>
