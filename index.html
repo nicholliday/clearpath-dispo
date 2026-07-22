@@ -416,13 +416,29 @@ var HELP_TOPICS = [
  {q:'✍️ Where do I fill in deal info (beds, ARV, market…)?', a:'Open the deal → <b>✏️ Details</b>. Marketing type, beds/baths, sqft, ARV, rent, Market (must match the GHL buyer tag), prices, dates. These build the blast text automatically — empty fields = weaker blast.'},
  {q:'🗓️ Do the KPI numbers reset?', a:'Automatically: Today resets daily (Central time), Month on the 1st, Quarter and Year on calendar boundaries. Week = rolling 7 days. All-time history keeps every month\'s final numbers forever.'}
 ];
-function openHelp(){
-  var h='<h2>❓ Help — how do I…</h2><div style="font-size:11px;color:var(--mut);margin-bottom:10px">Tap a question. For deal-process training, use the gold <b>how ▸</b> links inside each deal\'s SOP checklist.</div>';
+function helpFilter(q){
+  q=(q||'').toLowerCase().trim();
   HELP_TOPICS.forEach(function(t,i){
-    h+='<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">'
+    var row=document.getElementById('hlprow'+i), body=document.getElementById('hlp'+i);
+    if(!row) return;
+    var hit=!q || (t.q+' '+t.a).toLowerCase().indexOf(q)>=0;
+    row.style.display=hit?'block':'none';
+    if(body) body.style.display=(q&&hit)?'block':'none';
+  });
+  var none=document.getElementById('hlpnone');
+  if(none){ var any=HELP_TOPICS.some(function(t){return !q||(t.q+' '+t.a).toLowerCase().indexOf(q)>=0});
+    none.style.display=any?'none':'block'; }
+}
+function openHelp(){
+  var h='<h2>❓ Help — how do I…</h2>'
+    +'<input placeholder="🔍 Type to search… e.g. blast, offer, cancel, link" autocomplete="off" oninput="helpFilter(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:10px">'
+    +'<div style="font-size:11px;color:var(--mut);margin-bottom:10px">Type a word or tap a question. For deal-process training, use the gold <b>how ▸</b> links inside each deal\'s SOP checklist.</div>';
+  HELP_TOPICS.forEach(function(t,i){
+    h+='<div id="hlprow'+i+'" style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">'
       +'<div onclick="var b=document.getElementById(\'hlp'+i+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'" style="padding:10px 12px;cursor:pointer;font-size:13px;font-weight:600">'+t.q+'</div>'
       +'<div id="hlp'+i+'" style="display:none;padding:0 12px 12px;font-size:12px;color:var(--text);line-height:1.6">'+t.a+'</div></div>';
   });
+  h+='<div id="hlpnone" style="display:none;font-size:12px;color:var(--mut);padding:8px 2px">No match — try another word (blast, share, offer, stage, cancel, funnel…) or check the deal\'s <b>how ▸</b> guides.</div>';
   openModal(h);
 }
 
