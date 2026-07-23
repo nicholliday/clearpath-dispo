@@ -432,6 +432,7 @@ var HELP_TOPICS = [
  {q:'🗓️ Do the KPI numbers reset?', k:'zero wipe daily monthly rolling boundaries', a:'Automatically: Today resets daily (Central time), Month on the 1st, Quarter and Year on calendar boundaries. Week = rolling 7 days. All-time history keeps every month\'s final numbers forever.'},
  {q:'🕰️ Why do deal cards show big numbers but the weekly KPIs are low?', k:'historical catch up june old wiped', a:'By design. The pre-app history (Schley 149, Berry 63…) is stamped <b>June 30</b> — it fills every deal\'s lifetime bars but sits outside Week/Month/Quarter, so the live scoreboard only counts fresh activity.'},
  {q:'🔐 What is the passcode?', k:'password login locked enter', a:'One shared team passcode on first open: <b>clearpath</b>. Your device is remembered after that — if the lock screen ever reappears, just re-enter it.'},
+ {q:'📌 What is the amber status line on a deal?',k:'status note flag one liner title issues reason red why access',a:'A pinned one-liner explaining the deal\'s current state - e.g. TITLE ISSUES BEING WORKED - so a red alarm with a known reason doesn\'t cause panic. Set it: open the deal and tap <b>📌 Status</b> (or fill it in ✏️ Details). It shows in amber on the Today row and the deal card until cleared.'},
  {q:'💻 How do I install the app on Mac or phone?', k:'dock home screen chrome safari iphone download desktop icon', a:'Always from the live site URL, never a downloaded file. <b>Mac (Chrome):</b> open the site → ⋮ → Cast, Save and Share → <b>Install page as app</b> → right-click the Dock icon → Keep in Dock. <b>Safari:</b> File → Add to Dock. <b>iPhone:</b> Share → Add to Home Screen. Updates flow in automatically — it\'s the same site underneath.'}
 ];
 var HELP_STOP={'where':1,'do':1,'does':1,'did':1,'i':1,'my':1,'me':1,'we':1,'our':1,'you':1,'your':1,'how':1,'what':1,'whats':1,'is':1,'are':1,'was':1,'the':1,'a':1,'an':1,'to':1,'of':1,'in':1,'on':1,'at':1,'for':1,'and':1,'or':1,'it':1,'its':1,'can':1,'find':1,'see':1,'get':1,'go':1,'up':1,'set':1,'with':1,'from':1,'that':1,'this':1,'there':1,'be':1,'when':1,'why':1,'all':1};
@@ -839,6 +840,7 @@ function renderPlan(){
         +'<div class="cb" onclick="planCheck(\''+d.id+'\')">'+(p.done?'✓':'')+'</div>'
         +'<div style="flex:1;cursor:pointer" onclick="openDeal(\''+d.id+'\')"><b style="font-size:13px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span></div>'
         +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
+        +statusBanner(d)
         +'<div style="display:flex;gap:8px;margin-top:7px;align-items:flex-start">'
         +'<select class="tsel" onchange="planTimeSel(\''+d.id+'\',this)">'
         +'<option value=""'+(!p.time_block?' selected':'')+'>Time…</option>'
@@ -855,12 +857,17 @@ function renderPlan(){
 }
 
 // ---------- deal card ----------
+function statusBanner(d){
+  if(!d.status_note)return '';
+  return '<div style="margin:6px 0 2px;padding:5px 9px;border-radius:7px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);color:var(--amber);font-size:11px;font-weight:800;letter-spacing:.04em">📌 '+esc(d.status_note).toUpperCase()+'</div>';
+}
 function dealCard(d,compact){
   var r=reached(d), min=D.targets.min_buyers_per_deal||100, pct=Math.min(100,Math.round(r/min*100));
   var nt=needsTouch(d), bo=bestOffer(d), du=daysUnder(d);
   var h='<div class="card'+(nt?' alert':'')+'" onclick="openDeal(\''+d.id+'\')">'
     +'<div class="row"><div><b style="font-size:14px">'+dealLabel(d)+'</b> <span style="font-size:10px;color:var(--mut)">'+dealCode(d)+'</span> <span title="Copy blast tag" style="cursor:pointer;font-size:11px" onclick="event.stopPropagation();copyBlastTag(\''+d.id+'\')">📋</span></div>'
     +'<span style="white-space:nowrap"><span style="font-size:10px;padding:3px 7px;border-radius:6px;border:1px solid #26334D;color:#93A1B8;margin-right:5px">'+(d.deal_type==='Novation'?'📋 Novation':d.deal_type==='Double Close'?'🔁 Double':'⚡ Cash')+'</span><span class="pill '+stageClass(d.stage)+'">'+esc(d.stage)+'</span></span></div>'
+    +statusBanner(d)
     +(function(){
       function dl(dt,label){
         if(!dt) return '';
@@ -1489,11 +1496,20 @@ function openDealForm(existing){
   +'</div>'
   +'<div class="half"><div><label>Inspection period ends</label><input type="date" id="f_insp" value="'+(d.contract_date||'')+'"></div><div><label>Closing deadline</label><input type="date" id="f_dl" value="'+(d.closing_deadline||'')+'"></div></div>'
   +'<div id="f_revwrap" style="display:'+(d.stage==='Closed'?'block':'none')+'"><label>Revenue closed ($)</label><input type="number" id="f_rev" value="'+(d.revenue_closed||'')+'"></div>'
+  +'<label>📌 Status note (one-liner, shows on Today + deal card)</label><input id="f_status" value="'+esc(d.status_note||'')+'" placeholder="e.g. TITLE ISSUES BEING WORKED">'
   +'<label>Notes</label><textarea id="f_notes" rows="2">'+esc(d.notes||'')+'</textarea>'
   +'<button class="btn g big" onclick="saveDeal(\''+(d.id||'')+'\')">'+(existing?'Save changes':'Add deal')+'</button>'
   +(existing?'<button class="btn d big" onclick="delDeal(\''+d.id+'\')">Delete deal</button>':'');
   openModal(h);
   document.getElementById('f_stage').addEventListener('change',function(){ document.getElementById('f_revwrap').style.display=this.value==='Closed'?'block':'none'; });
+}
+async function setStatusNote(id){
+  var d=D.deals.find(function(x){return x.id===id});if(!d)return;
+  var v=prompt('One-liner status (why this deal is where it is) - leave empty to clear:', d.status_note||'');
+  if(v===null)return;
+  var r=await db.from('deals').update({status_note:v.trim()||null}).eq('id',id);
+  if(r.error)return alert(r.error.message);
+  closeModal();loadAll();
 }
 async function saveDeal(id){
   var row={seller_name:document.getElementById('f_seller').value||null,address:document.getElementById('f_addr').value,
@@ -1514,7 +1530,7 @@ async function saveDeal(id){
     contract_date:document.getElementById('f_insp').value||null,
     closing_deadline:document.getElementById('f_dl').value||null,
     revenue_closed:Number(document.getElementById('f_rev')?document.getElementById('f_rev').value:0)||null,
-    notes:document.getElementById('f_notes').value};
+    notes:document.getElementById('f_notes').value,status_note:(document.getElementById('f_status')?document.getElementById('f_status').value.trim():null)||null};
   if(!row.address)return alert('Address required');
   if(['Cancelled','Ghosted','Ghosted w/ Memorandum'].indexOf(row.stage)>=0){
     var dr=document.getElementById('f_dreason').value;
@@ -1559,7 +1575,8 @@ function openDeal(id){
   +'<button onclick="closeModal();openLog(\'offer\',\''+id+'\')">+ Offer</button>'
   +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
   +'<button onclick="closeModal();openLog(\'feedback\',\''+id+'\')">💬 Feedback</button>'
-  +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Details</button></div>'
+  +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Details</button>'
+  +'<button onclick="setStatusNote(\''+id+'\')">📌 Status</button></div>'
   +(function(){
     var tpl=sopTemplate(d), checks=SOP[d.id]||{}, pr=sopProgress(d);
     var h='<div class="sec" style="margin-top:0">SOP checklist <small>'+pr.done+' / '+pr.total+'</small></div>';
