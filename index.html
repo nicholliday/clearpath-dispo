@@ -1548,6 +1548,25 @@ async function delDeal(id){
   closeModal(); loadAll();
 }
 
+async function toggleDailyLog(id){
+  var box=document.getElementById('dlog_'+id), arr=document.getElementById('dlog_arr_'+id);
+  if(!box)return;
+  if(box.style.display!=='none'){ box.style.display='none'; if(arr)arr.textContent='show \u25B8'; return; }
+  box.style.display='block'; if(arr)arr.textContent='hide \u25BE';
+  box.innerHTML='Loading\u2026';
+  var r=await db.from('daily_plan').select('plan_on,note,done').eq('deal_id',id).order('plan_on',{ascending:false}).limit(30);
+  if(r.error){ box.innerHTML='<span style="color:var(--red)">'+esc(r.error.message)+'</span>'; return; }
+  var rows=(r.data||[]).filter(function(p){return p.note&&String(p.note).trim()});
+  if(!rows.length){ box.innerHTML='<span>No plans typed for this deal yet.</span>'; return; }
+  var todayStr=today();
+  box.innerHTML=rows.map(function(p){
+    var dLbl=(p.plan_on===todayStr?'Today':p.plan_on);
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line)">'
+      +'<div style="min-width:82px;font-size:11px;color:var(--mut);font-weight:700">'+dLbl+'</div>'
+      +'<div style="flex:1;color:var(--text)">'+esc(p.note)+(p.done?' <span style="color:var(--green)">\u2713</span>':'')+'</div>'
+      +'</div>';
+  }).join('');
+}
 function openDeal(id){
   var d=D.deals.find(function(x){return x.id===id});
   var autoByDay={};
@@ -1611,6 +1630,8 @@ function openDeal(id){
     });
     return h;
   })()
+  +'<div class="sec" style="cursor:pointer" onclick="toggleDailyLog(\''+id+'\')">\uD83D\uDCD3 Daily log <span id="dlog_arr_'+id+'" style="font-size:11px;color:var(--mut)">show \u25B8</span></div>'
+  +'<div id="dlog_'+id+'" style="display:none;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--mut)">Loading\u2026</div>'
   +'<div class="sec">Activity timeline</div>'
   +'<div class="tl">'+(evs.map(function(e){return '<div class="ev"><div class="d">'+e.d+'</div>'+e.t+'</div>'}).join('')||'<p style="font-size:12px;color:var(--mut)">No activity yet — get it in front of buyers.</p>')+'</div>';
   openModal(h);
