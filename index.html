@@ -644,11 +644,20 @@ var STAGE_HINT = {
   'Listed on MLS':'Re-blast, book walkthroughs, follow up buyers',
   'EMD In':'Push closing: title, EMD status, buyer comms'
 };
+var PREV = {};
 async function loadPlan(){
-  PLAN = {}; PLAN_ERR = null;
+  PLAN = {}; PREV = {}; PLAN_ERR = null;
   var r = await db.from('daily_plan').select('*').eq('plan_on', today());
   if(r.error){ PLAN_ERR = r.error.message; return; }
   r.data.forEach(function(p){ PLAN[p.deal_id] = p; });
+  var pv = await db.from('daily_plan').select('deal_id,plan_on,note')
+    .lt('plan_on', today()).not('note','is',null)
+    .order('plan_on',{ascending:false}).limit(500);
+  if(!pv.error&&pv.data){
+    pv.data.forEach(function(p){
+      if(p.note&&String(p.note).trim()&&!PREV[p.deal_id]) PREV[p.deal_id]={note:p.note,on:p.plan_on};
+    });
+  }
 }
 async function upPlan(dealId, patch){
   var cur = PLAN[dealId] || {};
@@ -834,7 +843,8 @@ function renderPlan(){
     group.forEach(function(d){
       var p = PLAN[d.id] || {};
       if(p.done) done++;
-      var hint = STAGE_HINT[d.stage] || 'Plan for this contract today';
+      var pvn = PREV[d.id];
+      var hint = pvn ? ('Yesterday: '+pvn.note) : (STAGE_HINT[d.stage] || 'Plan for this contract today');
       h += '<div class="prow'+(p.done?' pdone':'')+'">'
         +'<div style="display:flex;align-items:center;gap:9px">'
         +'<div class="cb" onclick="planCheck(\''+d.id+'\')">'+(p.done?'✓':'')+'</div>'
