@@ -1595,7 +1595,9 @@ function openDeal(id){
   +'<button onclick="closeModal();openLog(\'drop\',\''+id+'\')">Price drop</button>'
   +'<button onclick="closeModal();openLog(\'feedback\',\''+id+'\')">💬 Feedback</button>'
   +'<button onclick="closeModal();openDealForm(D.deals.find(function(x){return x.id===\''+id+'\'}))">✏️ Details</button>'
-  +'<button onclick="setStatusNote(\''+id+'\')">📌 Status</button></div>'
+  +'<button onclick="setStatusNote(\''+id+'\')">📌 Status</button>'
+  +'<button onclick="toggleDailyLog(\''+id+'\')">\uD83D\uDCD3 Daily log</button></div>'
+  +'<div id="dlog_'+id+'" style="display:none;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--mut)">Loading\u2026</div>'
   +(function(){
     var tpl=sopTemplate(d), checks=SOP[d.id]||{}, pr=sopProgress(d);
     var h='<div class="sec" style="margin-top:0">SOP checklist <small>'+pr.done+' / '+pr.total+'</small></div>';
@@ -1630,8 +1632,6 @@ function openDeal(id){
     });
     return h;
   })()
-  +'<div class="sec" style="cursor:pointer" onclick="toggleDailyLog(\''+id+'\')">\uD83D\uDCD3 Daily log <span id="dlog_arr_'+id+'" style="font-size:11px;color:var(--mut)">show \u25B8</span></div>'
-  +'<div id="dlog_'+id+'" style="display:none;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--mut)">Loading\u2026</div>'
   +'<div class="sec">Activity timeline</div>'
   +'<div class="tl">'+(evs.map(function(e){return '<div class="ev"><div class="d">'+e.d+'</div>'+e.t+'</div>'}).join('')||'<p style="font-size:12px;color:var(--mut)">No activity yet — get it in front of buyers.</p>')+'</div>';
   openModal(h);
