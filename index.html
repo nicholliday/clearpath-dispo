@@ -1619,6 +1619,19 @@ function openDeal(id){
     tpl.forEach(function(s){
       var secDone=s.items.every(function(it){return checks[it[0]]});
       h+='<div style="font-size:12px;font-weight:700;color:'+(secDone?'var(--green)':'var(--mut)')+';margin:10px 0 5px">'+(secDone?'✓ ':'')+s.sec+'</div>';
+      h+='<div style="background:var(--card2);border-radius:8px;padding:6px 10px">';
+      s.items.forEach(function(it){
+        var dn=checks[it[0]];
+        var how=(d.deal_type==='Novation'?SOP_HOW_NOV:SOP_HOW)[it[0]];
+        h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;'+(dn?'color:var(--mut);text-decoration:line-through':'color:var(--text)')+'" onclick="toggleSop(\''+d.id+'\',\''+it[0]+'\')">'
+          +'<span style="min-width:16px">'+(dn?'☑':'☐')+'</span><span>'+it[1]
+          +(how?' <span style="color:var(--gold,#C9A227);font-size:10px;text-decoration:underline;white-space:nowrap" onclick="event.stopPropagation();var q=document.getElementById(\'how_'+it[0]+'\');q.style.display=q.style.display===\'none\'?\'block\':\'none\'">how ▸</span><div id="how_'+it[0]+'" style="display:none;margin-top:4px;padding:6px 8px;background:var(--card,#141D2E);border-left:2px solid var(--gold,#C9A227);border-radius:6px;font-size:11px;line-height:1.6;color:var(--text);text-decoration:none" onclick="event.stopPropagation()">'+how+'</div>':'')
+          +'</span></div>';
+      });
+      h+='</div>';
+    });
+    return h;
+  })()
   +(function(){
     var offs=D.offers.filter(function(x){return x.deal_id===id}).sort(function(a,b){return (b.amount||0)-(a.amount||0)});
     var fbs=D.fb.filter(function(x){return x.deal_id===id}).sort(function(a,b){return b.fb_on<a.fb_on?-1:1});
@@ -1633,19 +1646,6 @@ function openDeal(id){
       fbs.forEach(function(x){ s+='<div style="font-size:12px;margin-bottom:4px">'+esc(x.buyer||'Buyer')+' — <b>'+esc(x.temperature||'')+'</b>'+(x.would_pay?' · would pay '+fmt$(x.would_pay):'')+(x.notes?' <span style="color:var(--mut)">· '+esc(x.notes)+'</span>':'')+' <span style="color:var(--mut)">· '+x.fb_on+'</span></div>'; });
     }
     return s+'</div>';
-  })()
-      h+='<div style="background:var(--card2);border-radius:8px;padding:6px 10px">';
-      s.items.forEach(function(it){
-        var dn=checks[it[0]];
-        var how=(d.deal_type==='Novation'?SOP_HOW_NOV:SOP_HOW)[it[0]];
-        h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer;font-size:12px;'+(dn?'color:var(--mut);text-decoration:line-through':'color:var(--text)')+'" onclick="toggleSop(\''+d.id+'\',\''+it[0]+'\')">'
-          +'<span style="min-width:16px">'+(dn?'☑':'☐')+'</span><span>'+it[1]
-          +(how?' <span style="color:var(--gold,#C9A227);font-size:10px;text-decoration:underline;white-space:nowrap" onclick="event.stopPropagation();var q=document.getElementById(\'how_'+it[0]+'\');q.style.display=q.style.display===\'none\'?\'block\':\'none\'">how ▸</span><div id="how_'+it[0]+'" style="display:none;margin-top:4px;padding:6px 8px;background:var(--card,#141D2E);border-left:2px solid var(--gold,#C9A227);border-radius:6px;font-size:11px;line-height:1.6;color:var(--text);text-decoration:none" onclick="event.stopPropagation()">'+how+'</div>':'')
-          +'</span></div>';
-      });
-      h+='</div>';
-    });
-    return h;
   })()
   +'<div class="sec">Activity timeline</div>'
   +'<div class="tl">'+(evs.map(function(e){return '<div class="ev"><div class="d">'+e.d+'</div>'+e.t+'</div>'}).join('')||'<p style="font-size:12px;color:var(--mut)">No activity yet — get it in front of buyers.</p>')+'</div>';
